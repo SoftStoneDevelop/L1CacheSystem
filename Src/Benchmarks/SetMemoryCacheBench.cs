@@ -14,14 +14,13 @@ namespace Benchmarks;
 [ThreadingDiagnoser]
 [ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net10_0)]
-[SimpleJob(RuntimeMoniker.NativeAot10_0)]
 public class SetMemoryCacheBench
 {
     private FakeMeterFactory _meterFactory;
     private CacheSystem _cacheSystem;
     private MemoryCache _memoryCache;
 
-    [Params(1000, 10_000)]
+    [Params(10_000, 25_000, 50_000)]
     public int Size;
 
     [IterationSetup]

@@ -68,13 +68,11 @@ public enum MetricCollectBits : int
     /// <summary>
     /// All counter metrics
     /// </summary>
-    /// <remarks>They have a significant impact on the performance of the methods. It is not recommended to include these metrics unless you are certain that you truly need them.</remarks>
     AllCount = ItemsCount | SetCallsCount | GetCallsCount | GetAllCallsCount | DeleteCallsCount,
 
     /// <summary>
     /// All time-related metrics
     /// </summary>
-    /// <remarks>They have a significant impact on the performance of the methods. It is not recommended to include these metrics unless you are certain that you truly need them.</remarks>
     AllTimes = GetLockTime | SetCallTime | GetCallTime | GetAllCallTime | DeleteCallTime,
 
     AllBits = ~0

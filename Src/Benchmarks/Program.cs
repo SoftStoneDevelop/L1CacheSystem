@@ -9,6 +9,7 @@ internal class Program
         BenchmarkRunner.Run<GetMemoryCacheBench>();
         BenchmarkRunner.Run<SetMemoryCacheBench>();
         BenchmarkRunner.Run<UpdateMemoryCacheBench>();
-        //BenchmarkRunner.Run<MetricEffectMemoryCacheBench>();
+        BenchmarkRunner.Run<DeleteMemoryCacheBench>();
+        BenchmarkRunner.Run<MetricEffectMemoryCacheBench>();
     }
 }

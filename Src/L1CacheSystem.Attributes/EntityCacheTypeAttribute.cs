@@ -16,7 +16,7 @@ public sealed class EntityCacheTypeAttribute : Attribute
     /// <param name="interfaceType">The type of interface that the generated code will become a part of</param>
     /// <param name="cacheName">Cache name—since types can repeat within the cache, even though the collections themselves are different</param>
     /// <param name="propAsKey">The property from the type that should be used as a key</param>
-    /// <param name="collectMetrics">Collecting metrics is quite time-consuming (2.5x overhead), so it is recommended to disable it if your application has strict response time requirements</param>
+    /// <param name="metricCollectFlags">Flags specifying which metrics to collect</param>
     /// <param name="copyMethodName">Name of the copy method</param>
     public EntityCacheTypeAttribute(
         Type cacheType,
