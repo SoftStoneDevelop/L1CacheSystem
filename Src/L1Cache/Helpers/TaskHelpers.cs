@@ -9,7 +9,7 @@ internal static class TaskHelpers
     /// <summary>
     /// Wait for a task to complete or cancel the token
     /// </summary>
-    public static async Task WaitEndRoutine(Task? routine, CancellationToken cancellation = default)
+    internal static async Task WaitEndRoutine(Task? routine, CancellationToken cancellation = default)
     {
         if (routine == null)
         {

@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace L1CacheSystem;
 
-public abstract partial class L1CacheSystemBase : IDisposable
+public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
 {
     [LoggerMessage(Level = LogLevel.Trace, Message = "Clearing locks: Waiting for a resource lock {lockKey} - {inWait}")]
     private partial void LogClearingLocksWait(string lockKey, int inWait);
@@ -68,8 +68,10 @@ public abstract partial class L1CacheSystemBase : IDisposable
     {
         if (_removeExpireRoutine != null)
         {
+            await _cts!.CancelAsync();
             await TaskHelpers.WaitEndRoutine(_removeExpireRoutine, cancellationToken).ConfigureAwait(false);
             _removeExpireRoutine = null;
+            _cts.Dispose();
         }
     }
 
