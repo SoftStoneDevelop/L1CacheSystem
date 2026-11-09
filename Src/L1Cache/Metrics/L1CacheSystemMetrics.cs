@@ -46,7 +46,7 @@ public sealed class L1CacheSystemMetrics
             description: "Total count in cache");
 
         _getLockTimeHistogram = _meter.CreateHistogram<double>(
-            "get_lock_time_microseconds",
+            "get_lock_time",
             unit: "us",
             description: "The time taken by the method");
 
