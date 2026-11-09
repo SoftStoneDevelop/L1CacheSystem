@@ -166,3 +166,16 @@ public class MyValueService
   }
 }
 ```
+
+What metrics look like, using Grafana visualization as an example:
+<img width="2058" height="1147" alt="image" src="https://github.com/user-attachments/assets/96e0eff2-92b0-4958-a7b4-0268a9091a47" />
+<img width="2062" height="1114" alt="image" src="https://github.com/user-attachments/assets/8fac71c5-ead0-412a-8b98-9d67df48cdc6" />
+<img width="2068" height="1099" alt="image" src="https://github.com/user-attachments/assets/671f238c-366b-4b32-b590-780e317c7c5e" />
+<img width="2066" height="1112" alt="image" src="https://github.com/user-attachments/assets/e916b4fa-e05f-4b91-81d7-4d13d0fee8af" />
+<img width="2071" height="604" alt="image" src="https://github.com/user-attachments/assets/b39d5efd-5a2d-4427-9383-4f84d4bcd15d" />
+<img width="2067" height="613" alt="image" src="https://github.com/user-attachments/assets/0ad45a57-2dd1-4087-aaf0-ce8731d3dc1b" />
+
+
+
+
+
