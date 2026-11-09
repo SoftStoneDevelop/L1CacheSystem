@@ -53,6 +53,7 @@ public partial interface IServiceCacheSystem
 {
 }
 
+// You can have as many EntityCacheType as you like, the number of different types is not limited.
 [EntityCacheType(
     cacheType: typeof(MyValue),
     interfaceType: typeof(IServiceCacheSystem),
@@ -132,7 +133,10 @@ public class MyValueService
 
     // If you need the value and plan to change it after this call, then pass it as `NotTransferred`
     // Then CacheSystem will save a copy of it during the call (by copying it using the method you specified earlier, at the configuration stage).
-    _cacheSystem.SetYouCacheName(value.Id, value, ValueOwnership.Transferred);
+
+    _cacheSystem.SetYouCacheName(value.Id, value, valueOwnership: ValueOwnership.Transferred, expiry: null);
+    // if "expiry" is provided then casheSystem remove cache value from cache when key is expire
+
     // The Set method is thread‑safe on its own; the lockGuard is only needed if you’re using something more complex than a simple set/get.
   }
 
