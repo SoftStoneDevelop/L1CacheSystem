@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Prometheus;
 using Scalar.AspNetCore;
@@ -30,7 +29,7 @@ public static class WebApplicationExtension
 
         app.UseMetricServer(metricSettings.RestPort, metricSettings.Patch);
 
-        if (app.Environment.IsDevelopment())
+        if (true)
         {
             app.UseDeveloperExceptionPage();
             app.MapOpenApi();

@@ -67,6 +67,7 @@ public class EchoSuppressorHostedService : IHostedService
                     if (string.IsNullOrEmpty(echo.ResidualSound) || echo.ResidualSound.Length <= 1)
                     {
                         await _cacheSystem.GetEchoLockAsync(echo.Id, lockGuard, cancellationToken);
+                        await _cacheSystem.GetScreamLockAsync(echo.Id, lockGuard, cancellationToken);
                         var currentEcho = _cacheSystem.GetEcho(echo.Id, returnType: L1CacheSystem.Enums.ReturnType.Reference);
                         if (currentEcho == null || currentEcho.ResidualSound?.Length > 1)
                         {
@@ -74,6 +75,7 @@ public class EchoSuppressorHostedService : IHostedService
                         }
 
                         _cacheSystem.DeleteEcho(echo.Id);
+                        _cacheSystem.DeleteScream(echo.Id);
                     }
                     else
                     {
