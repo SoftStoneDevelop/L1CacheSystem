@@ -18,6 +18,8 @@
 L1CacheSystem is the application’s internal cache. It was created to solve two problems that IMemoryCache couldn’t address:
  - The ability to filter by all cache entities
  - Blocking a specific resource by key
+
+This is a niche, simple solution adapted to the specific tasks I’ve encountered. When all entities fit into RAM, and there’s no point in using Redis or something more complex. It doesn’t claim compatibility with hybrid caching or other approaches.
  
 <h1 align="left">
   <a>Usage</a>
