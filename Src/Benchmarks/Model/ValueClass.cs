@@ -8,7 +8,7 @@ public class ValueClass
 
     public double? DoubleProp { get; set; }
 
-    public ValueClass Child { get; set; }
+    public ValueClass? Child { get; set; }
 
     public static ValueClass MakeCopy(ValueClass origin)
     {

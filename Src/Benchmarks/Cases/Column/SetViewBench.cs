@@ -15,9 +15,9 @@ namespace Benchmarks.Cases.Column;
 [SimpleJob(RuntimeMoniker.Net10_0)]
 public class SetViewBench
 {
-    private FakeMeterFactory _meterFactory;
-    private CacheSystem _cacheSystem;
-    private ValueClass[] _values;
+    private FakeMeterFactory? _meterFactory;
+    private CacheSystem? _cacheSystem;
+    private ValueClass[]? _values;
 
     [Params(10_000, 25_000, 50_000)]
     public int Size;
@@ -54,7 +54,7 @@ public class SetViewBench
     [IterationCleanup]
     public void IterationCleanup()
     {
-        _cacheSystem.StopAsync(default).Wait();
+        _cacheSystem?.StopAsync(default).Wait();
         _cacheSystem = null;
         _meterFactory = null;
     }
@@ -64,7 +64,7 @@ public class SetViewBench
     {
         for (int i = 0; i < Size; i++)
         {
-            var value = _values[i];
+            var value = _values![i];
             var newVal = new ValueClass()
             {
                 Id = value.Id,
@@ -73,7 +73,7 @@ public class SetViewBench
                 Child = value.Child
             };
 
-            _cacheSystem.SetBitsNone(newVal, ValueOwnership.Transferred);
+            _cacheSystem!.SetBitsNone(newVal, ValueOwnership.Transferred);
         }
     }
 
@@ -82,8 +82,20 @@ public class SetViewBench
     {
         for (int i = 0; i < Size; i++)
         {
-            var value = _values[i];
-            _cacheSystem.SetCustomFromView(value.Id, value);
+            var value = _values![i];
+            _cacheSystem!.SetCustomFromView(
+                value.Id,
+                new CacheSystem.SetViewInfo
+                {
+                    IdProp = CacheSystem.SetViewOperation.Set,
+                    FuncIdProp = () => value.Id,
+                    IntProp = CacheSystem.SetViewOperation.Set,
+                    FuncIntProp = () => value.IntProp,
+                    DoubleProp = value.DoubleProp.HasValue ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
+                    FuncDoubleProp = value.DoubleProp.HasValue ? () => value.DoubleProp : null,
+                    ChildProp = value.Child != null ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
+                    FuncChildProp = value.Child != null ? () => value.Child : null
+                });
         }
     }
 }

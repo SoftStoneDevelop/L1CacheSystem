@@ -15,8 +15,8 @@ namespace Benchmarks.Cases.Column;
 [SimpleJob(RuntimeMoniker.Net10_0)]
 public class ForeachByColumnBench
 {
-    private FakeMeterFactory _meterFactory;
-    private CacheSystem _cacheSystem;
+    private FakeMeterFactory? _meterFactory;
+    private CacheSystem? _cacheSystem;
 
     [Params(10_000, 25_000, 50_000, 100_000, 1_000_000)]
     public int Size;
@@ -45,7 +45,19 @@ public class ForeachByColumnBench
                 DoubleProp = haveOptional ? i * 3d : null,
             };
             _cacheSystem.SetBitsNone(value, ValueOwnership.Transferred);
-            _cacheSystem.SetCustomFromView(value.Id, value);
+            _cacheSystem!.SetCustomFromView(
+                value.Id,
+                new CacheSystem.SetViewInfo
+                {
+                    IdProp = CacheSystem.SetViewOperation.Set,
+                    FuncIdProp = () => value.Id,
+                    IntProp = CacheSystem.SetViewOperation.Set,
+                    FuncIntProp = () => value.IntProp,
+                    DoubleProp = value.DoubleProp.HasValue ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
+                    FuncDoubleProp = value.DoubleProp.HasValue ? () => value.DoubleProp : null,
+                    ChildProp = value.Child != null ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
+                    FuncChildProp = value.Child != null ? () => value.Child : null
+                });
         }
     }
 

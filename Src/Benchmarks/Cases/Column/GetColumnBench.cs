@@ -15,8 +15,8 @@ namespace Benchmarks.Cases.Column;
 [SimpleJob(RuntimeMoniker.Net10_0)]
 public class GetColumnBench
 {
-    private FakeMeterFactory _meterFactory;
-    private CacheSystem _cacheSystem;
+    private FakeMeterFactory? _meterFactory;
+    private CacheSystem? _cacheSystem;
 
     [Params(10_000, 25_000, 50_000)]
     public int Size;
@@ -45,14 +45,26 @@ public class GetColumnBench
                 DoubleProp = haveOptional ? i * 8745d : null,
             };
             _cacheSystem.SetBitsNone(value, ValueOwnership.Transferred);
-            _cacheSystem.SetCustomFromView(value.Id, value);
+            _cacheSystem!.SetCustomFromView(
+                value.Id,
+                new CacheSystem.SetViewInfo
+                {
+                    IdProp = CacheSystem.SetViewOperation.Set,
+                    FuncIdProp = () => value.Id,
+                    IntProp = CacheSystem.SetViewOperation.Set,
+                    FuncIntProp = () => value.IntProp,
+                    DoubleProp = value.DoubleProp.HasValue ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
+                    FuncDoubleProp = value.DoubleProp.HasValue ? () => value.DoubleProp : null,
+                    ChildProp = value.Child != null ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
+                    FuncChildProp = value.Child != null ? () => value.Child : null
+                });
         }
     }
 
     [IterationCleanup]
     public void IterationCleanup()
     {
-        _cacheSystem.StopAsync(default).Wait();
+        _cacheSystem?.StopAsync(default).Wait();
         _cacheSystem = null;
         _meterFactory = null;
     }
@@ -62,7 +74,7 @@ public class GetColumnBench
     {
         for (long i = 0; i < Size; i++)
         {
-            var value = _cacheSystem.GetBitsNone(i, ReturnType.Reference).IntProp;
+            var value = _cacheSystem!.GetBitsNone(i, ReturnType.Reference)!.IntProp;
         }
     }
 
@@ -71,7 +83,7 @@ public class GetColumnBench
     {
         for (long i = 0; i < Size; i++)
         {
-            _ = _cacheSystem.TryGetCustomIntProp(i, out var intProp);
+            _ = _cacheSystem!.TryGetCustomIntProp(i, out var intProp);
         }
     }
 }

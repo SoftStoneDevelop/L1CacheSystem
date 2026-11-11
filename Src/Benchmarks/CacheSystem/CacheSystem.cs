@@ -79,119 +79,230 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
     private readonly List<long> _customIdPropertyReverse = [];
     private readonly List<long> _customIdProperty = [];
 
-    public void SetCustomFromView(long key, ValueClass value)
+    public enum SetViewOperation : ushort
+    {
+        None = 0,
+        Set = 1,
+        RemoveIfExist = 2
+    }
+
+    public struct SetViewInfo
+    {
+        public SetViewOperation IdProp;
+        public Func<long>? FuncIdProp;
+
+        public SetViewOperation IntProp;
+        public Func<int>? FuncIntProp;
+
+        public SetViewOperation DoubleProp;
+        public Func<double?>? FuncDoubleProp;
+
+        public SetViewOperation ChildProp;
+        public Func<ValueClass>? FuncChildProp;
+    }
+
+    public void SetCustomFromView(long key, in SetViewInfo viewInfo)
     {
         _customSlimLock.EnterWriteLock();
         try
         {
             ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, key);
-            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index)) // add new
+            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
             {
                 var si = new SparseIndex();
-
-                si.SetIndex(0, true, _customIdProperty.Count);
-                _customIdProperty.Add(value.Id);
-                _customIdPropertyReverse.Add(key);
-
-                si.SetIndex(1, true, _customIntPropProperty.Count);
-                _customIntPropProperty.Add(value.IntProp);
-                _customIntPropPropertyReverse.Add(key);
-
-                var haveDoubleProp = value.DoubleProp.HasValue;
-                si.SetIndex(2, haveDoubleProp, _customDoublePropProperty.Count);
-                if (haveDoubleProp)
+                if (viewInfo.IdProp == SetViewOperation.Set)
                 {
-                    _customDoublePropProperty.Add(value.DoubleProp.Value);
+                    si.SetIndex(0, true, _customIdProperty.Count);
+                    _customIdProperty.Add(viewInfo.FuncIdProp!());
+                    _customIdPropertyReverse.Add(key);
+                }
+
+                if (viewInfo.IntProp == SetViewOperation.Set)
+                {
+                    si.SetIndex(1, true, _customIntPropProperty.Count);
+                    _customIntPropProperty.Add(viewInfo.FuncIntProp!());
+                    _customIntPropPropertyReverse.Add(key);
+                }
+
+                if (viewInfo.DoubleProp == SetViewOperation.Set)
+                {
+                    si.SetIndex(2, true, _customDoublePropProperty.Count);
+                    _customDoublePropProperty.Add(viewInfo.FuncDoubleProp!());
                     _customDoublePropPropertyReverse.Add(key);
                 }
 
-                var haveChild = value.Child != null;
-                si.SetIndex(3, haveChild, _customChildProperty.Count);
-                if (haveChild)
+                if (viewInfo.ChildProp == SetViewOperation.Set)
                 {
-                    _customChildProperty.Add(value.Child);
+                    si.SetIndex(3, true, _customChildProperty.Count);
+                    _customChildProperty.Add(viewInfo.FuncChildProp!());
                     _customChildPropertyReverse.Add(key);
                 }
 
                 _customIndexes.Add(key, si);
             }
-            else // update
+            else
             {
-                _customIdProperty[index.GetIndex(0)] = value.Id;
-
-                _customIntPropProperty[index.GetIndex(1)] = value.IntProp;
-
-                var haveDoubleProp = value.DoubleProp.HasValue;
-                var doublePropOldIndex = index.GetIndex(2);
-                if (haveDoubleProp)
+                if (viewInfo.IdProp != SetViewOperation.None)
                 {
-                    if (doublePropOldIndex == -1)
+                    var propIndex = index.GetIndex(0);
+                    if (propIndex == -1)
                     {
-                        index.SetIndex(2, true, _customDoublePropProperty.Count - 1);
-                        _customDoublePropProperty.Add(value.DoubleProp.Value);
+                        if (viewInfo.IdProp == SetViewOperation.Set)
+                        {
+                            index.SetIndex(0, true, _customIdProperty.Count);
+                            _customIdProperty.Add(viewInfo.FuncIdProp!());
+                            _customIdPropertyReverse.Add(key);
+                        }
                     }
                     else
                     {
-                        index.SetIndex(2, true, doublePropOldIndex);
-                        _customDoublePropProperty[doublePropOldIndex] = value.DoubleProp.Value;
+                        if (viewInfo.IdProp == SetViewOperation.Set)
+                        {
+                            _customIdProperty[propIndex] = viewInfo.FuncIdProp!();
+                        }
+                        else
+                        {
+                            if (propIndex == _customIdProperty.Count - 1)
+                            {
+                                _customIdProperty.RemoveAt(propIndex);
+                                _customIdPropertyReverse.RemoveAt(propIndex);
+                            }
+                            else
+                            {
+                                var endOfListIndex = _customIdProperty.Count - 1;
+                                var swapId = _customIdPropertyReverse[endOfListIndex];
+                                _customIdPropertyReverse[propIndex] = swapId;
+                                _customIdPropertyReverse.RemoveAt(endOfListIndex);
+
+                                ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
+                                swapIndex.SetIndex(0, false, propIndex);
+                                _customIdProperty[propIndex] = _customIdProperty[endOfListIndex];
+                                _customIdProperty.RemoveAt(endOfListIndex);
+                            }
+                        }
                     }
                 }
-                else if (doublePropOldIndex != -1)
+
+                if (viewInfo.IntProp != SetViewOperation.None)
                 {
-                    index.SetIndex(2, false, doublePropOldIndex);
-                    if (doublePropOldIndex == _customDoublePropProperty.Count - 1)
+                    var propIndex = index.GetIndex(1);
+                    if (propIndex == -1)
                     {
-                        _customDoublePropProperty.RemoveAt(doublePropOldIndex);
-                        _customDoublePropPropertyReverse.RemoveAt(doublePropOldIndex);
+                        if (viewInfo.IntProp == SetViewOperation.Set)
+                        {
+                            index.SetIndex(1, true, _customIntPropProperty.Count);
+                            _customIntPropProperty.Add(viewInfo.FuncIntProp!());
+                            _customIntPropPropertyReverse.Add(key);
+                        }
                     }
                     else
                     {
-                        var endOfListIndex = _customDoublePropProperty.Count - 1;
-                        var swapId = _customDoublePropPropertyReverse[endOfListIndex];
-                        _customDoublePropPropertyReverse[doublePropOldIndex] = swapId;
-                        _customDoublePropPropertyReverse.RemoveAt(endOfListIndex);
+                        if (viewInfo.IntProp == SetViewOperation.Set)
+                        {
+                            _customIntPropProperty[propIndex] = viewInfo.FuncIntProp!();
+                        }
+                        else
+                        {
+                            if (propIndex == _customIntPropProperty.Count - 1)
+                            {
+                                _customIntPropProperty.RemoveAt(propIndex);
+                                _customIntPropPropertyReverse.RemoveAt(propIndex);
+                            }
+                            else
+                            {
+                                var endOfListIndex = _customIntPropProperty.Count - 1;
+                                var swapId = _customIntPropPropertyReverse[endOfListIndex];
+                                _customIntPropPropertyReverse[propIndex] = swapId;
+                                _customIntPropPropertyReverse.RemoveAt(endOfListIndex);
 
-                        ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
-                        swapIndex.SetIndex(2, false, doublePropOldIndex);
-                        _customDoublePropProperty[doublePropOldIndex] = _customDoublePropProperty[endOfListIndex];
-                        _customDoublePropProperty.RemoveAt(doublePropOldIndex);
+                                ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
+                                swapIndex.SetIndex(0, false, propIndex);
+                                _customIntPropProperty[propIndex] = _customIntPropProperty[endOfListIndex];
+                                _customIntPropProperty.RemoveAt(endOfListIndex);
+                            }
+                        }
                     }
                 }
 
-                var haveChild = value.Child != null;
-                var childOldIndex = index.GetIndex(3);
-                if (haveChild)
+                if (viewInfo.DoubleProp != SetViewOperation.None)
                 {
-                    if (childOldIndex == -1)
+                    var propIndex = index.GetIndex(2);
+                    if (propIndex == -1)
                     {
-                        index.SetIndex(3, true, _customChildProperty.Count);
-                        _customChildProperty.Add(value.Child);
+                        if (viewInfo.DoubleProp == SetViewOperation.Set)
+                        {
+                            index.SetIndex(2, true, _customDoublePropProperty.Count);
+                            _customDoublePropProperty.Add(viewInfo.FuncDoubleProp!());
+                            _customDoublePropPropertyReverse.Add(key);
+                        }
                     }
                     else
                     {
-                        index.SetIndex(3, true, childOldIndex);
-                        _customChildProperty[childOldIndex] = value.Child;
+                        if (viewInfo.DoubleProp == SetViewOperation.Set)
+                        {
+                            _customDoublePropProperty[propIndex] = viewInfo.FuncDoubleProp!();
+                        }
+                        else
+                        {
+                            if (propIndex == _customDoublePropProperty.Count - 1)
+                            {
+                                _customDoublePropProperty.RemoveAt(propIndex);
+                                _customIntPropPropertyReverse.RemoveAt(propIndex);
+                            }
+                            else
+                            {
+                                var endOfListIndex = _customDoublePropProperty.Count - 1;
+                                var swapId = _customDoublePropPropertyReverse[endOfListIndex];
+                                _customDoublePropPropertyReverse[propIndex] = swapId;
+                                _customDoublePropPropertyReverse.RemoveAt(endOfListIndex);
+
+                                ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
+                                swapIndex.SetIndex(0, false, propIndex);
+                                _customDoublePropProperty[propIndex] = _customDoublePropProperty[endOfListIndex];
+                                _customDoublePropProperty.RemoveAt(endOfListIndex);
+                            }
+                        }
                     }
                 }
-                else if (childOldIndex != -1)
+
+                if (viewInfo.ChildProp != SetViewOperation.None)
                 {
-                    index.SetIndex(3, false, childOldIndex);
-                    if (childOldIndex == _customChildProperty.Count - 1)
+                    var propIndex = index.GetIndex(3);
+                    if (propIndex == -1)
                     {
-                        _customChildProperty.RemoveAt(childOldIndex);
-                        _customChildPropertyReverse.RemoveAt(childOldIndex);
+                        if (viewInfo.ChildProp == SetViewOperation.Set)
+                        {
+                            index.SetIndex(3, true, _customChildProperty.Count);
+                            _customChildProperty.Add(viewInfo.FuncChildProp!());
+                            _customChildPropertyReverse.Add(key);
+                        }
                     }
                     else
                     {
-                        var endOfListIndex = _customChildProperty.Count - 1;
-                        var swapId = _customChildPropertyReverse[endOfListIndex];
-                        _customChildPropertyReverse[childOldIndex] = swapId;
-                        _customChildPropertyReverse.RemoveAt(endOfListIndex);
+                        if (viewInfo.ChildProp == SetViewOperation.Set)
+                        {
+                            _customChildProperty[propIndex] = viewInfo.FuncChildProp!();
+                        }
+                        else
+                        {
+                            if (propIndex == _customDoublePropProperty.Count - 1)
+                            {
+                                _customChildProperty.RemoveAt(propIndex);
+                                _customChildPropertyReverse.RemoveAt(propIndex);
+                            }
+                            else
+                            {
+                                var endOfListIndex = _customChildProperty.Count - 1;
+                                var swapId = _customChildPropertyReverse[endOfListIndex];
+                                _customChildPropertyReverse[propIndex] = swapId;
+                                _customChildPropertyReverse.RemoveAt(endOfListIndex);
 
-                        ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
-                        swapIndex.SetIndex(3, false, childOldIndex);
-                        _customChildProperty[childOldIndex] = _customChildProperty[endOfListIndex];
-                        _customChildProperty.RemoveAt(childOldIndex);
+                                ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
+                                swapIndex.SetIndex(0, false, propIndex);
+                                _customChildPropertyReverse[propIndex] = _customChildPropertyReverse[endOfListIndex];
+                                _customChildPropertyReverse.RemoveAt(endOfListIndex);
+                            }
+                        }
                     }
                 }
             }
@@ -361,7 +472,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
     }
 
     private readonly List<long> _customDoublePropPropertyReverse = [];
-    private readonly List<double> _customDoublePropProperty = [];
+    private readonly List<double?> _customDoublePropProperty = [];
 
     public bool TryGetCustomDoubleProp(long key, out double? doubleProp)
     {
@@ -417,41 +528,16 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
             }
             else
             {
-                var haveDoubleProp = doubleProp.HasValue;
-                var childOldIndex = index.GetIndex(2);
-                if (haveDoubleProp)
+                var indexProp = index.GetIndex(2);
+                if (indexProp != -1)
                 {
-                    if (childOldIndex == -1)
-                    {
-                        index.SetIndex(2, true, _customDoublePropProperty.Count - 1);
-                        _customDoublePropProperty.Add(doubleProp.Value);
-                    }
-                    else
-                    {
-                        index.SetIndex(2, true, childOldIndex);
-                        _customDoublePropProperty[childOldIndex] = doubleProp.Value;
-                    }
+                    _customDoublePropProperty[indexProp] = doubleProp;
                 }
-                else if (childOldIndex != -1)
+                else
                 {
-                    index.SetIndex(2, false, childOldIndex);
-                    if (childOldIndex == _customDoublePropProperty.Count - 1)
-                    {
-                        _customDoublePropProperty.RemoveAt(childOldIndex);
-                        _customDoublePropPropertyReverse.RemoveAt(childOldIndex);
-                    }
-                    else
-                    {
-                        var endOfListIndex = _customDoublePropProperty.Count - 1;
-                        var swapId = _customDoublePropPropertyReverse[endOfListIndex];
-                        _customDoublePropPropertyReverse[childOldIndex] = swapId;
-                        _customDoublePropPropertyReverse.RemoveAt(endOfListIndex);
-
-                        ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
-                        swapIndex.SetIndex(2, false, childOldIndex);
-                        _customDoublePropProperty[childOldIndex] = _customDoublePropProperty[endOfListIndex];
-                        _customDoublePropProperty.RemoveAt(childOldIndex);
-                    }
+                    index.SetIndex(2, true, _customDoublePropProperty.Count);
+                    _customDoublePropProperty.Add(doubleProp);
+                    _customDoublePropPropertyReverse.Add(key);
                 }
             }
         }
@@ -462,9 +548,9 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
     }
 
     private readonly List<long> _customChildPropertyReverse = [];
-    private readonly List<ValueClass> _customChildProperty = [];
+    private readonly List<ValueClass?> _customChildProperty = [];
 
-    public bool TryGetCustomChildProp(long key, out ValueClass childProp)
+    public bool TryGetCustomChildProp(long key, out ValueClass? childProp)
     {
         _customSlimLock.EnterReadLock();
         try
@@ -496,7 +582,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
         }
     }
 
-    public void SetCustomChildProp(long key, ValueClass child)
+    public void SetCustomChildProp(long key, ValueClass? child)
     {
         _customSlimLock.EnterWriteLock();
         try
@@ -518,41 +604,16 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
             }
             else
             {
-                var haveChild = child != null;
-                var childOldIndex = index.GetIndex(3);
-                if (haveChild)
+                var indexProp = index.GetIndex(3);
+                if (indexProp != -1)
                 {
-                    if (childOldIndex == -1)
-                    {
-                        index.SetIndex(3, true, _customChildProperty.Count - 1);
-                        _customChildProperty.Add(child);
-                    }
-                    else
-                    {
-                        index.SetIndex(3, true, childOldIndex);
-                        _customChildProperty[childOldIndex] = child;
-                    }
+                    _customChildProperty[indexProp] = child;
                 }
-                else if (childOldIndex != -1)
+                else
                 {
-                    index.SetIndex(3, false, childOldIndex);
-                    if (childOldIndex == _customChildProperty.Count - 1)
-                    {
-                        _customChildProperty.RemoveAt(childOldIndex);
-                        _customChildPropertyReverse.RemoveAt(childOldIndex);
-                    }
-                    else
-                    {
-                        var endOfListIndex = _customChildProperty.Count - 1;
-                        var swapId = _customChildPropertyReverse[endOfListIndex];
-                        _customChildPropertyReverse[childOldIndex] = swapId;
-                        _customChildPropertyReverse.RemoveAt(endOfListIndex);
-
-                        ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
-                        swapIndex.SetIndex(3, false, childOldIndex);
-                        _customChildProperty[childOldIndex] = _customChildProperty[endOfListIndex];
-                        _customChildProperty.RemoveAt(childOldIndex);
-                    }
+                    index.SetIndex(3, true, _customChildProperty.Count);
+                    _customChildProperty.Add(child);
+                    _customChildPropertyReverse.Add(key);
                 }
             }
         }
