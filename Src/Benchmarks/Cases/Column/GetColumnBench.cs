@@ -18,7 +18,7 @@ public class GetColumnBench
     private FakeMeterFactory? _meterFactory;
     private CacheSystem? _cacheSystem;
 
-    [Params(10_000, 25_000, 50_000)]
+    [Params(10_000, 25_000, 50_000, 100_000)]
     public int Size;
 
     [IterationSetup]
@@ -84,6 +84,15 @@ public class GetColumnBench
         for (long i = 0; i < Size; i++)
         {
             _ = _cacheSystem!.TryGetCustomIntProp(i, out var intProp);
+        }
+    }
+
+    [Benchmark(Description = "Get ColumnSpan")]
+    public async Task GetColumnSpan()
+    {
+        for (long i = 0; i < Size; i++)
+        {
+            _ = _cacheSystem!.TryGetCustomIntPropSpan(i, out var intProp);
         }
     }
 }

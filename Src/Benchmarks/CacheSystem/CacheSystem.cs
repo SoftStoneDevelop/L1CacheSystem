@@ -402,6 +402,38 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
     private readonly List<long> _customIntPropPropertyReverse = [];
     private readonly List<int> _customIntPropProperty = [];
 
+    public bool TryGetCustomIntPropSpan(long key, out int intProp)
+    {
+        _customSlimLock.EnterReadLock();
+        try
+        {
+            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, key);
+            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
+            {
+                intProp = 0;
+                return false;
+            }
+            else
+            {
+                var listIndex = index.GetIndex(1);
+                if (listIndex == -1)
+                {
+                    intProp = 0;
+                    return false;
+                }
+                else
+                {
+                    intProp = CollectionsMarshal.AsSpan(_customIntPropProperty)[listIndex];
+                    return true;
+                }
+            }
+        }
+        finally
+        {
+            _customSlimLock.ExitReadLock();
+        }
+    }
+
     public bool TryGetCustomIntProp(long key, out int intProp)
     {
         _customSlimLock.EnterReadLock();
