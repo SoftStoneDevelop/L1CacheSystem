@@ -3,22 +3,20 @@ using BenchmarkDotNet.Jobs;
 using Benchmarks.Backend;
 using Benchmarks.Model;
 using L1CacheSystem.Enums;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Threading.Tasks;
 
-namespace Benchmarks;
+namespace Benchmarks.Cases.Column;
 
 [MemoryDiagnoser]
 [ThreadingDiagnoser]
 [ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net10_0)]
-public class GetMemoryCacheBench
+public class GetColumnBench
 {
     private FakeMeterFactory _meterFactory;
     private CacheSystem _cacheSystem;
-    private MemoryCache _memoryCache;
 
     [Params(10_000, 25_000, 50_000)]
     public int Size;
@@ -30,25 +28,24 @@ public class GetMemoryCacheBench
         _cacheSystem = new CacheSystem(NullLogger.Instance, TimeProvider.System, _meterFactory);
         _cacheSystem.StartAsync(default).Wait();
 
-        _memoryCache = new MemoryCache(new MemoryCacheOptions(), NullLoggerFactory.Instance);
-
         for (int i = 0; i < Size; i++)
         {
+            var haveOptional = i % 2 == 1;
             var value = new ValueClass()
             {
-                Child = new ValueClass()
+                Child = haveOptional ? new ValueClass()
                 {
                     Id = i * 5,
                     IntProp = i * 3,
                     DoubleProp = i * 78451d,
                     Child = null
-                },
+                } : null,
                 Id = i,
                 IntProp = i * 2,
-                DoubleProp = i * 8745d
+                DoubleProp = haveOptional ? i * 8745d : null,
             };
-            _cacheSystem.SetBitsDefault(value, ValueOwnership.Transferred);
-            _memoryCache.Set(value.Id, value);
+            _cacheSystem.SetBitsNone(value, ValueOwnership.Transferred);
+            _cacheSystem.SetCustomFromView(value.Id, value);
         }
     }
 
@@ -58,26 +55,23 @@ public class GetMemoryCacheBench
         _cacheSystem.StopAsync(default).Wait();
         _cacheSystem = null;
         _meterFactory = null;
-
-        _memoryCache.Dispose();
-        _memoryCache = null;
     }
 
-    [Benchmark(Description = "Get IMemoryCache", Baseline = true)]
-    public async Task GetMemoryCache()
+    [Benchmark(Description = "Get Entity", Baseline = true)]
+    public async Task GetEntity()
     {
         for (long i = 0; i < Size; i++)
         {
-            var value = _memoryCache.Get<ValueClass>(i);
+            var value = _cacheSystem.GetBitsNone(i, ReturnType.Reference).IntProp;
         }
     }
 
-    [Benchmark(Description = "Get CacheSystem Reference")]
-    public async Task GetCacheSystemRef()
+    [Benchmark(Description = "Get Column")]
+    public async Task GetColumn()
     {
         for (long i = 0; i < Size; i++)
         {
-            var value = _cacheSystem.GetBitsDefault(i, ReturnType.Reference);
+            _ = _cacheSystem.TryGetCustomIntProp(i, out var intProp);
         }
     }
 }

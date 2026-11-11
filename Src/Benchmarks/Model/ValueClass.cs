@@ -6,7 +6,7 @@ public class ValueClass
 
     public int IntProp { get; set; }
 
-    public double DoubleProp { get; set; }
+    public double? DoubleProp { get; set; }
 
     public ValueClass Child { get; set; }
 

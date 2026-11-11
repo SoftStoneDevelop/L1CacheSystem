@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Threading.Tasks;
 
-namespace Benchmarks;
+namespace Benchmarks.Cases.Entity;
 
 [MemoryDiagnoser]
 [ThreadingDiagnoser]

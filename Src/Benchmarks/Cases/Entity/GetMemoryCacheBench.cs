@@ -8,13 +8,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Threading.Tasks;
 
-namespace Benchmarks;
+namespace Benchmarks.Cases.Entity;
 
 [MemoryDiagnoser]
 [ThreadingDiagnoser]
 [ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net10_0)]
-public class DeleteMemoryCacheBench
+public class GetMemoryCacheBench
 {
     private FakeMeterFactory _meterFactory;
     private CacheSystem _cacheSystem;
@@ -63,21 +63,21 @@ public class DeleteMemoryCacheBench
         _memoryCache = null;
     }
 
-    [Benchmark(Description = "Delete IMemoryCache", Baseline = true)]
+    [Benchmark(Description = "Get IMemoryCache", Baseline = true)]
     public async Task GetMemoryCache()
     {
         for (long i = 0; i < Size; i++)
         {
-            _memoryCache.Remove(i);
+            var value = _memoryCache.Get<ValueClass>(i);
         }
     }
 
-    [Benchmark(Description = "Delete CacheSystem")]
+    [Benchmark(Description = "Get CacheSystem Reference")]
     public async Task GetCacheSystemRef()
     {
         for (long i = 0; i < Size; i++)
         {
-            _cacheSystem.DeleteBitsDefault(i);
+            var value = _cacheSystem.GetBitsDefault(i, ReturnType.Reference);
         }
     }
 }
