@@ -86,19 +86,19 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
         RemoveIfExist = 2
     }
 
-    public struct SetViewInfo
+    public readonly struct SetViewInfo
     {
-        public SetViewOperation IdProp;
-        public Func<long>? FuncIdProp;
+        public readonly SetViewOperation IdProp { get; init; }
+        public readonly Func<long>? FuncIdProp { get; init; }
 
-        public SetViewOperation IntProp;
-        public Func<int>? FuncIntProp;
+        public readonly SetViewOperation IntProp { get; init; }
+        public readonly Func<int>? FuncIntProp { get; init; }
 
-        public SetViewOperation DoubleProp;
-        public Func<double?>? FuncDoubleProp;
+        public readonly SetViewOperation DoubleProp { get; init; }
+        public readonly Func<double?>? FuncDoubleProp { get; init; }
 
-        public SetViewOperation ChildProp;
-        public Func<ValueClass>? FuncChildProp;
+        public readonly SetViewOperation ChildProp { get; init; }
+        public readonly Func<ValueClass>? FuncChildProp { get; init; }
     }
 
     public void SetCustomFromView(long key, in SetViewInfo viewInfo)

@@ -77,7 +77,7 @@ public class SetViewBench
         }
     }
 
-    [Benchmark(Description = "Set Column")]
+    [Benchmark(Description = "Set View")]
     public async Task SetColumn()
     {
         for (int i = 0; i < Size; i++)
