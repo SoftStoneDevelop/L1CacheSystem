@@ -175,9 +175,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
             {
                 builder.Append($@"
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(keyInfo)}, key, out var created);
-            if (created)
+            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(keyInfo)}, key, out var exists);
+            if (!exists)
             {{
+                index = new();
                 _metrics.IncItemsCount(""{keyInfo.CacheName}"");
             }}");
             }
@@ -624,9 +625,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
             {
                 builder.Append($@"
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(cacheInfo.KeyInfo)}, key, out var created);
-            if (created)
+            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(cacheInfo.KeyInfo)}, key, out var exists);
+            if (!exists)
             {{
+                index = new();
                 _metrics.IncItemsCount(""{cacheInfo.KeyInfo.CacheName}"");
             }}");
             }
@@ -660,7 +662,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                     }}
                     else
                     {{
-                        InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, {i});
+                        InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, columnIndex);
                     }}
                 }}
             }}

@@ -572,7 +572,7 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         /// <summary>
         /// The date after which the values will be removed from the cache
         /// </summary>
-        public DateTimeOffset? Expire { get; set; }
+        public DateTimeOffset? Expire { get; set; } = null;
 
         /// <summary>
         /// Get index of property
