@@ -13,7 +13,8 @@ namespace Benchmarks.Cases.Entity;
 [MemoryDiagnoser]
 [ThreadingDiagnoser]
 [ExceptionDiagnoser]
-[SimpleJob(RuntimeMoniker.Net10_0)]
+[SimpleJob(RuntimeMoniker.Net11_0)]
+[SimpleJob(RuntimeMoniker.NativeAot11_0)]
 public class SetMemoryCacheBench
 {
     private FakeMeterFactory? _meterFactory;

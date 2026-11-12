@@ -24,6 +24,43 @@ public partial interface IL1CacheSystemColumn
     ColumnCache(
     columnType: typeof(InnerTestClass),
     columnName: nameof(TestClass.InnerClass))]
+[KeyColumnCache(
+    keyType: typeof(long),
+    interfaceType: typeof(IL1CacheSystemColumn),
+    cacheName: "Columns33"),
+    ColumnCache(columnType: typeof(long), columnName: "p1"),
+    ColumnCache(columnType: typeof(long), columnName: "p2"),
+    ColumnCache(columnType: typeof(long), columnName: "p3"),
+    ColumnCache(columnType: typeof(long), columnName: "p4"),
+    ColumnCache(columnType: typeof(long), columnName: "p5"),
+    ColumnCache(columnType: typeof(long), columnName: "p6"),
+    ColumnCache(columnType: typeof(long), columnName: "p7"),
+    ColumnCache(columnType: typeof(long), columnName: "p8"),
+    ColumnCache(columnType: typeof(long), columnName: "p9"),
+    ColumnCache(columnType: typeof(long), columnName: "p10"),
+    ColumnCache(columnType: typeof(long), columnName: "p11"),
+    ColumnCache(columnType: typeof(long), columnName: "p12"),
+    ColumnCache(columnType: typeof(long), columnName: "p13"),
+    ColumnCache(columnType: typeof(long), columnName: "p14"),
+    ColumnCache(columnType: typeof(long), columnName: "p15"),
+    ColumnCache(columnType: typeof(long), columnName: "p16"),
+    ColumnCache(columnType: typeof(long), columnName: "p17"),
+    ColumnCache(columnType: typeof(long), columnName: "p18"),
+    ColumnCache(columnType: typeof(long), columnName: "p19"),
+    ColumnCache(columnType: typeof(long), columnName: "p20"),
+    ColumnCache(columnType: typeof(long), columnName: "p21"),
+    ColumnCache(columnType: typeof(long), columnName: "p22"),
+    ColumnCache(columnType: typeof(long), columnName: "p23"),
+    ColumnCache(columnType: typeof(long), columnName: "p24"),
+    ColumnCache(columnType: typeof(long), columnName: "p25"),
+    ColumnCache(columnType: typeof(long), columnName: "p26"),
+    ColumnCache(columnType: typeof(long), columnName: "p27"),
+    ColumnCache(columnType: typeof(long), columnName: "p28"),
+    ColumnCache(columnType: typeof(long), columnName: "p29"),
+    ColumnCache(columnType: typeof(long), columnName: "p30"),
+    ColumnCache(columnType: typeof(long), columnName: "p31"),
+    ColumnCache(columnType: typeof(long), columnName: "p32"),
+    ColumnCache(columnType: typeof(long), columnName: "p33")]
 public sealed partial class TestCacheSystemColumn : L1CacheSystemBase, IL1CacheSystemColumn
 {
     public TestCacheSystemColumn(
@@ -290,121 +327,254 @@ internal class ColumnCacheTypeTests
     #region SparseIndex tests
 
     [Test]
-    public void GetIndex()
+    [TestCase(true)]
+    [TestCase(false)]
+    public void GetIndex(bool inlinedArray)
     {
-        var si = new TestCacheSystemColumn.SparseIndexOne();
+        if (inlinedArray)
+        {
+            var si = new TestCacheSystemColumn.SparseIndexOne();
+            Assert.That(si.IsInlinedArray(), Is.True);
 
-        si.SetIndex(1, true, 64);
-        Assert.That(si.GetIndex(1), Is.EqualTo(64));
-        Assert.That(si.GetIndex(3), Is.EqualTo(-1));
-        Assert.That(si.GetIndex(10), Is.EqualTo(-1));
+            si.SetIndex(0, true, 64);
+            Assert.That(si.GetIndex(0), Is.EqualTo(64));
+            Assert.That(si.GetIndex(1), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(2), Is.EqualTo(-1));
 
-        si.SetIndex(3, true, 49);
-        Assert.That(si.GetIndex(1), Is.EqualTo(64));
-        Assert.That(si.GetIndex(3), Is.EqualTo(49));
-        Assert.That(si.GetIndex(10), Is.EqualTo(-1));
+            si.SetIndex(1, true, 49);
+            Assert.That(si.GetIndex(0), Is.EqualTo(64));
+            Assert.That(si.GetIndex(1), Is.EqualTo(49));
+            Assert.That(si.GetIndex(2), Is.EqualTo(-1));
 
-        si.SetIndex(10, true, 87);
-        Assert.That(si.GetIndex(1), Is.EqualTo(64));
-        Assert.That(si.GetIndex(3), Is.EqualTo(49));
-        Assert.That(si.GetIndex(10), Is.EqualTo(87));
+            si.SetIndex(2, true, 87);
+            Assert.That(si.GetIndex(0), Is.EqualTo(64));
+            Assert.That(si.GetIndex(1), Is.EqualTo(49));
+            Assert.That(si.GetIndex(2), Is.EqualTo(87));
 
-        si.SetIndex(3, false, 164);
-        Assert.That(si.GetIndex(1), Is.EqualTo(64));
-        Assert.That(si.GetIndex(3), Is.EqualTo(-1));
-        Assert.That(si.GetIndex(10), Is.EqualTo(87));
+            si.SetIndex(1, false, 164);
+            Assert.That(si.GetIndex(0), Is.EqualTo(64));
+            Assert.That(si.GetIndex(1), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(2), Is.EqualTo(87));
 
-        si.SetIndex(3, true, 164);
-        Assert.That(si.GetIndex(1), Is.EqualTo(64));
-        Assert.That(si.GetIndex(3), Is.EqualTo(164));
-        Assert.That(si.GetIndex(10), Is.EqualTo(87));
+            si.SetIndex(1, true, 164);
+            Assert.That(si.GetIndex(0), Is.EqualTo(64));
+            Assert.That(si.GetIndex(1), Is.EqualTo(164));
+            Assert.That(si.GetIndex(2), Is.EqualTo(87));
 
-        si.SetIndex(3, false, 118);
-        si.SetIndex(1, false, 115);
-        Assert.That(si.GetIndex(1), Is.EqualTo(-1));
-        Assert.That(si.GetIndex(3), Is.EqualTo(-1));
-        Assert.That(si.GetIndex(10), Is.EqualTo(87));
+            si.SetIndex(1, false, 118);
+            si.SetIndex(0, false, 115);
+            Assert.That(si.GetIndex(0), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(1), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(2), Is.EqualTo(87));
 
-        si.SetIndex(3, false, 118);
-        si.SetIndex(1, false, 115);
-        si.SetIndex(10, false, 406);
-        Assert.That(si.GetIndex(1), Is.EqualTo(-1));
-        Assert.That(si.GetIndex(3), Is.EqualTo(-1));
-        Assert.That(si.GetIndex(10), Is.EqualTo(-1));
+            si.SetIndex(1, false, 118);
+            si.SetIndex(0, false, 115);
+            si.SetIndex(2, false, 406);
+            Assert.That(si.GetIndex(0), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(1), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(2), Is.EqualTo(-1));
+        }
+        else
+        {
+            var si = new TestCacheSystemColumn.SparseIndexColumns33();
+            Assert.That(si.IsInlinedArray(), Is.False);
+
+            si.SetIndex(1, true, 64);
+            Assert.That(si.GetIndex(1), Is.EqualTo(64));
+            Assert.That(si.GetIndex(3), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(10), Is.EqualTo(-1));
+
+            si.SetIndex(3, true, 49);
+            Assert.That(si.GetIndex(1), Is.EqualTo(64));
+            Assert.That(si.GetIndex(3), Is.EqualTo(49));
+            Assert.That(si.GetIndex(10), Is.EqualTo(-1));
+
+            si.SetIndex(10, true, 87);
+            Assert.That(si.GetIndex(1), Is.EqualTo(64));
+            Assert.That(si.GetIndex(3), Is.EqualTo(49));
+            Assert.That(si.GetIndex(10), Is.EqualTo(87));
+
+            si.SetIndex(3, false, 164);
+            Assert.That(si.GetIndex(1), Is.EqualTo(64));
+            Assert.That(si.GetIndex(3), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(10), Is.EqualTo(87));
+
+            si.SetIndex(3, true, 164);
+            Assert.That(si.GetIndex(1), Is.EqualTo(64));
+            Assert.That(si.GetIndex(3), Is.EqualTo(164));
+            Assert.That(si.GetIndex(10), Is.EqualTo(87));
+
+            si.SetIndex(3, false, 118);
+            si.SetIndex(1, false, 115);
+            Assert.That(si.GetIndex(1), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(3), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(10), Is.EqualTo(87));
+
+            si.SetIndex(3, false, 118);
+            si.SetIndex(1, false, 115);
+            si.SetIndex(10, false, 406);
+            Assert.That(si.GetIndex(1), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(3), Is.EqualTo(-1));
+            Assert.That(si.GetIndex(10), Is.EqualTo(-1));
+        }
     }
 
     [Test]
-    public void HavePropCount()
+    [TestCase(true)]
+    [TestCase(false)]
+    public void HavePropCount(bool inlinedArray)
     {
-        var si = new TestCacheSystemColumn.SparseIndexOne();
+        if (inlinedArray)
+        {
+            var si = new TestCacheSystemColumn.SparseIndexOne();
+            Assert.That(si.IsInlinedArray(), Is.True);
 
-        si.SetIndex(1, true, 64);
-        Assert.That(si.HavePropCount(), Is.EqualTo(1));
+            si.SetIndex(0, true, 64);
+            Assert.That(si.HavePropCount(), Is.EqualTo(1));
 
-        si.SetIndex(3, true, 49);
-        Assert.That(si.HavePropCount(), Is.EqualTo(2));
+            si.SetIndex(1, true, 49);
+            Assert.That(si.HavePropCount(), Is.EqualTo(2));
 
-        si.SetIndex(10, true, 87);
-        Assert.That(si.HavePropCount(), Is.EqualTo(3));
+            si.SetIndex(2, true, 87);
+            Assert.That(si.HavePropCount(), Is.EqualTo(3));
 
-        si.SetIndex(3, false, 164);
-        Assert.That(si.HavePropCount(), Is.EqualTo(2));
+            si.SetIndex(1, false, 164);
+            Assert.That(si.HavePropCount(), Is.EqualTo(2));
 
-        si.SetIndex(3, true, 164);
-        Assert.That(si.HavePropCount(), Is.EqualTo(3));
+            si.SetIndex(1, true, 164);
+            Assert.That(si.HavePropCount(), Is.EqualTo(3));
 
-        si.SetIndex(3, false, 118);
-        si.SetIndex(1, false, 115);
-        Assert.That(si.HavePropCount(), Is.EqualTo(1));
+            si.SetIndex(1, false, 118);
+            si.SetIndex(0, false, 115);
+            Assert.That(si.HavePropCount(), Is.EqualTo(1));
 
-        si.SetIndex(3, false, 118);
-        si.SetIndex(1, false, 115);
-        si.SetIndex(10, false, 406);
-        Assert.That(si.HavePropCount(), Is.Zero);
+            si.SetIndex(1, false, 118);
+            si.SetIndex(0, false, 115);
+            si.SetIndex(2, false, 406);
+            Assert.That(si.HavePropCount(), Is.Zero);
+        }
+        else
+        {
+            var si = new TestCacheSystemColumn.SparseIndexColumns33();
+            Assert.That(si.IsInlinedArray(), Is.False);
+
+            si.SetIndex(1, true, 64);
+            Assert.That(si.HavePropCount(), Is.EqualTo(1));
+
+            si.SetIndex(3, true, 49);
+            Assert.That(si.HavePropCount(), Is.EqualTo(2));
+
+            si.SetIndex(10, true, 87);
+            Assert.That(si.HavePropCount(), Is.EqualTo(3));
+
+            si.SetIndex(3, false, 164);
+            Assert.That(si.HavePropCount(), Is.EqualTo(2));
+
+            si.SetIndex(3, true, 164);
+            Assert.That(si.HavePropCount(), Is.EqualTo(3));
+
+            si.SetIndex(3, false, 118);
+            si.SetIndex(1, false, 115);
+            Assert.That(si.HavePropCount(), Is.EqualTo(1));
+
+            si.SetIndex(3, false, 118);
+            si.SetIndex(1, false, 115);
+            si.SetIndex(10, false, 406);
+            Assert.That(si.HavePropCount(), Is.Zero);
+        }
     }
 
     [Test]
-    public void HaveProp()
+    [TestCase(true)]
+    [TestCase(false)]
+    public void HaveProp(bool inlinedArray)
     {
-        var si = new TestCacheSystemColumn.SparseIndexOne();
+        if (inlinedArray)
+        {
+            var si = new TestCacheSystemColumn.SparseIndexOne();
+            Assert.That(si.IsInlinedArray(), Is.True);
 
-        si.SetIndex(1, true, 64);
-        Assert.That(si.HaveProp(1), Is.True);
-        Assert.That(si.HaveProp(3), Is.False);
-        Assert.That(si.HaveProp(10), Is.False);
+            si.SetIndex(0, true, 64);
+            Assert.That(si.HaveProp(0), Is.True);
+            Assert.That(si.HaveProp(1), Is.False);
+            Assert.That(si.HaveProp(2), Is.False);
 
-        si.SetIndex(3, true, 49);
-        Assert.That(si.HaveProp(1), Is.True);
-        Assert.That(si.HaveProp(3), Is.True);
-        Assert.That(si.HaveProp(10), Is.False);
+            si.SetIndex(1, true, 49);
+            Assert.That(si.HaveProp(0), Is.True);
+            Assert.That(si.HaveProp(1), Is.True);
+            Assert.That(si.HaveProp(2), Is.False);
 
-        si.SetIndex(10, true, 87);
-        Assert.That(si.HaveProp(1), Is.True);
-        Assert.That(si.HaveProp(3), Is.True);
-        Assert.That(si.HaveProp(10), Is.True);
+            si.SetIndex(2, true, 87);
+            Assert.That(si.HaveProp(0), Is.True);
+            Assert.That(si.HaveProp(1), Is.True);
+            Assert.That(si.HaveProp(2), Is.True);
 
-        si.SetIndex(3, false, 164);
-        Assert.That(si.HaveProp(1), Is.True);
-        Assert.That(si.HaveProp(3), Is.False);
-        Assert.That(si.HaveProp(10), Is.True);
+            si.SetIndex(1, false, 164);
+            Assert.That(si.HaveProp(0), Is.True);
+            Assert.That(si.HaveProp(1), Is.False);
+            Assert.That(si.HaveProp(2), Is.True);
 
-        si.SetIndex(3, true, 164);
-        Assert.That(si.HaveProp(1), Is.True);
-        Assert.That(si.HaveProp(3), Is.True);
-        Assert.That(si.HaveProp(10), Is.True);
+            si.SetIndex(1, true, 164);
+            Assert.That(si.HaveProp(0), Is.True);
+            Assert.That(si.HaveProp(1), Is.True);
+            Assert.That(si.HaveProp(2), Is.True);
 
-        si.SetIndex(3, false, 118);
-        si.SetIndex(1, false, 115);
-        Assert.That(si.HaveProp(1), Is.False);
-        Assert.That(si.HaveProp(3), Is.False);
-        Assert.That(si.HaveProp(10), Is.True);
+            si.SetIndex(1, false, 118);
+            si.SetIndex(0, false, 115);
+            Assert.That(si.HaveProp(0), Is.False);
+            Assert.That(si.HaveProp(1), Is.False);
+            Assert.That(si.HaveProp(2), Is.True);
 
-        si.SetIndex(3, false, 118);
-        si.SetIndex(1, false, 115);
-        si.SetIndex(10, false, 406);
-        Assert.That(si.HaveProp(1), Is.False);
-        Assert.That(si.HaveProp(3), Is.False);
-        Assert.That(si.HaveProp(10), Is.False);
+            si.SetIndex(1, false, 118);
+            si.SetIndex(0, false, 115);
+            si.SetIndex(2, false, 406);
+            Assert.That(si.HaveProp(0), Is.False);
+            Assert.That(si.HaveProp(1), Is.False);
+            Assert.That(si.HaveProp(2), Is.False);
+        }
+        else
+        {
+            var si = new TestCacheSystemColumn.SparseIndexColumns33();
+            Assert.That(si.IsInlinedArray(), Is.False);
+
+            si.SetIndex(1, true, 64);
+            Assert.That(si.HaveProp(1), Is.True);
+            Assert.That(si.HaveProp(3), Is.False);
+            Assert.That(si.HaveProp(10), Is.False);
+
+            si.SetIndex(3, true, 49);
+            Assert.That(si.HaveProp(1), Is.True);
+            Assert.That(si.HaveProp(3), Is.True);
+            Assert.That(si.HaveProp(10), Is.False);
+
+            si.SetIndex(10, true, 87);
+            Assert.That(si.HaveProp(1), Is.True);
+            Assert.That(si.HaveProp(3), Is.True);
+            Assert.That(si.HaveProp(10), Is.True);
+
+            si.SetIndex(3, false, 164);
+            Assert.That(si.HaveProp(1), Is.True);
+            Assert.That(si.HaveProp(3), Is.False);
+            Assert.That(si.HaveProp(10), Is.True);
+
+            si.SetIndex(3, true, 164);
+            Assert.That(si.HaveProp(1), Is.True);
+            Assert.That(si.HaveProp(3), Is.True);
+            Assert.That(si.HaveProp(10), Is.True);
+
+            si.SetIndex(3, false, 118);
+            si.SetIndex(1, false, 115);
+            Assert.That(si.HaveProp(1), Is.False);
+            Assert.That(si.HaveProp(3), Is.False);
+            Assert.That(si.HaveProp(10), Is.True);
+
+            si.SetIndex(3, false, 118);
+            si.SetIndex(1, false, 115);
+            si.SetIndex(10, false, 406);
+            Assert.That(si.HaveProp(1), Is.False);
+            Assert.That(si.HaveProp(3), Is.False);
+            Assert.That(si.HaveProp(10), Is.False);
+        }
     }
 
     #endregion

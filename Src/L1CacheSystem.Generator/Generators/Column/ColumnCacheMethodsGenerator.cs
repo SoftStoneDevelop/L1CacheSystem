@@ -375,10 +375,14 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             return (_propsMask & bitMask) != 0;
         }}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly int HavePropCount()
         {{
             return BitOperations.PopCount(_propsMask);
+        }}
+
+        public readonly bool IsInlinedArray()
+        {{
+            return true;
         }}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -479,10 +483,14 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             return (_propsMask & bitMask) != 0;
         }}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly int HavePropCount()
         {{
             return BitOperations.PopCount(_propsMask);
+        }}
+
+        public readonly bool IsInlinedArray()
+        {{
+            return false;
         }}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
