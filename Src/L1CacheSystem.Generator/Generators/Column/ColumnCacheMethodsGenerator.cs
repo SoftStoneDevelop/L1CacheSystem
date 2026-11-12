@@ -20,10 +20,13 @@ namespace L1CacheSystem.Generator.Generators.Column
 
             PrivateVars(builder, cacheInfo);
 
+            SetViewStruct(builder, cacheInfo);
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {
                 SetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
                 TryGetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
+                ForeachByColumn(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
+                ForeachByColumnWithKey(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
             }
 
             EndClass(builder, cacheInfo);
@@ -37,6 +40,8 @@ namespace L1CacheSystem.Generator.Generators.Column
             {
                 yield return SetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return TryGetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
+                yield return ForeachByColumnKeyMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
+                yield return ForeachByColumnWithKeyMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
             }
         }
 
@@ -195,6 +200,82 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                     value = {VarCollectionName(keyInfo, columnInfo)}[listIndex];
                     return true;
                 }}
+            }}
+        }}
+        finally
+        {{
+            {VarSlimLockName(keyInfo)}.ExitReadLock();
+        }}
+    }}
+");
+        }
+
+        private void SetViewStruct(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public ref struct SetView{cacheInfo.KeyInfo.CacheName}<T>
+    {{
+        public T Source {{ get; set; }}");
+
+            foreach (var columnInfo in cacheInfo.ColumnInfos)
+            {
+                builder.Append($@"
+        public SetViewOperation {columnInfo.ColumnName} {{ get; set; }}
+        public readonly Func<T, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}>? Func{columnInfo.ColumnName} {{ get; init; }}
+        public readonly {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} Get{columnInfo.ColumnName}() => Func{columnInfo.ColumnName}!(Source);
+");
+            }
+
+            builder.Append($@"
+    }}
+");
+        }
+
+        private string ForeachByColumnWithKeyMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        {
+            return $"void ForeachBy{keyInfo.CacheName}{columnInfo.ColumnName}(Action<{keyInfo.KeyType.GetFullTypeName()}, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}> valueAction)";
+        }
+
+        private void ForeachByColumnWithKey(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        {
+            builder.Append($@"
+    public {ForeachByColumnWithKeyMethodDeclaration(keyInfo, columnInfo)}
+    {{
+        {VarSlimLockName(keyInfo)}.EnterReadLock();
+        try
+        {{
+            var spanColumn = CollectionsMarshal.AsSpan({VarCollectionName(keyInfo, columnInfo)});
+            var spanColumnReverse = CollectionsMarshal.AsSpan({VarCollectionReverseName(keyInfo, columnInfo)});
+            for (int i = 0; i < spanColumn.Length; i++)
+            {{
+                valueAction(spanColumnReverse[i], spanColumn[i]);
+            }}
+        }}
+        finally
+        {{
+            {VarSlimLockName(keyInfo)}.ExitReadLock();
+        }}
+    }}
+");
+        }
+
+        private string ForeachByColumnKeyMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        {
+            return $"void ForeachBy{keyInfo.CacheName}{columnInfo.ColumnName}(Action<{columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}> valueAction)";
+        }
+
+        private void ForeachByColumn(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        {
+            builder.Append($@"
+    public {ForeachByColumnKeyMethodDeclaration(keyInfo, columnInfo)}
+    {{
+        {VarSlimLockName(keyInfo)}.EnterReadLock();
+        try
+        {{
+            var spanColumn = CollectionsMarshal.AsSpan({VarCollectionName(keyInfo, columnInfo)});
+            for (int i = 0; i < spanColumn.Length; i++)
+            {{
+                valueAction(spanColumn[i]);
             }}
         }}
         finally

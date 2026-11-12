@@ -28,14 +28,14 @@ public class ForeachByIntColumnBench
         _cacheSystem = new CacheSystem(NullLogger.Instance, TimeProvider.System, _meterFactory);
         _cacheSystem.StartAsync(default).Wait();
 
-        var view = new CacheSystem.SetViewInfoRef<ValueClass>
+        var view = new CacheSystem.SetViewColumnCache<ValueClass>
         {
-            IdProp = SetViewOperation.Set,
-            FuncIdProp = static (source) => source.Id,
+            Id = SetViewOperation.Set,
+            FuncId = static (source) => source.Id,
             IntProp = SetViewOperation.Set,
             FuncIntProp = static (source) => source.IntProp,
             FuncDoubleProp = static (source) => source.DoubleProp.HasValue ? source.DoubleProp : null,
-            FuncChildProp = static (source) => source.Child ?? null
+            FuncChild = static (source) => source.Child ?? null
         };
 
         for (int i = 0; i < Size; i++)
@@ -57,7 +57,7 @@ public class ForeachByIntColumnBench
 
             view.Source = value;
             view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
-            view.ChildProp = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+            view.Child = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
 
             _cacheSystem!.SetCustomFromView(value.Id, view);
             _cacheSystem.SetBitsNone(value, ValueOwnership.Transferred);
@@ -83,6 +83,6 @@ public class ForeachByIntColumnBench
     public async Task GetColumn()
     {
         var sum = 0;
-        _cacheSystem!.ForeachByIntPropColumn((key, intProp) => { sum += intProp; });
+        _cacheSystem!.ForeachByColumnCacheIntProp((intProp) => { sum += intProp; });
     }
 }

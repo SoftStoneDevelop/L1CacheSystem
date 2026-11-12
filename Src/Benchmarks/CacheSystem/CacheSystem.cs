@@ -85,28 +85,15 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
         }
     }
 
-    public ref struct SetViewInfoRef<T>
+    public void ForeachBitsNone(Action<Benchmarks.Model.ValueClass> action)
     {
-        public T Source { get; set; }
-
-        public SetViewOperation IdProp { get; set; }
-        public readonly Func<T, long>? FuncIdProp { get; init; }
-        public readonly long GetIdProp() => FuncIdProp!(Source);
-
-        public SetViewOperation IntProp { get; set; }
-        public readonly Func<T, int>? FuncIntProp { get; init; }
-        public readonly int GetIntProp() => FuncIntProp!(Source);
-
-        public SetViewOperation DoubleProp { get; set; }
-        public readonly Func<T, double?>? FuncDoubleProp { get; init; }
-        public readonly double? GetDoubleProp() => FuncDoubleProp!(Source);
-
-        public SetViewOperation ChildProp { get; set; }
-        public readonly Func<T, ValueClass?>? FuncChildProp { get; init; }
-        public readonly ValueClass? GetChildProp() => FuncChildProp!(Source);
+        foreach (var value in _bitsNoneCollection.Values)
+        {
+            action(value.Value);
+        }
     }
 
-    public void SetCustomFromView<T>(long key, in SetViewInfoRef<T> viewInfo)
+    public void SetCustomFromView<T>(long key, in SetViewColumnCache<T> viewInfo)
     {
         _columnCacheSlimLock.EnterWriteLock();
         try
@@ -115,10 +102,10 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
             if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
             {
                 var si = new SparseIndex();
-                if (viewInfo.IdProp == SetViewOperation.Set)
+                if (viewInfo.Id == SetViewOperation.Set)
                 {
                     si.SetIndex(0, true, _columnCacheId.Count);
-                    _columnCacheId.Add(viewInfo.GetIdProp());
+                    _columnCacheId.Add(viewInfo.GetId());
                     _columnCacheIdReverse.Add(key);
                 }
 
@@ -136,10 +123,10 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                     _columnCacheDoublePropReverse.Add(key);
                 }
 
-                if (viewInfo.ChildProp == SetViewOperation.Set)
+                if (viewInfo.Child == SetViewOperation.Set)
                 {
                     si.SetIndex(3, true, _columnCacheChild.Count);
-                    _columnCacheChild.Add(viewInfo.GetChildProp());
+                    _columnCacheChild.Add(viewInfo.GetChild());
                     _columnCacheChildReverse.Add(key);
                 }
 
@@ -147,23 +134,23 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
             }
             else
             {
-                if (viewInfo.IdProp != SetViewOperation.None)
+                if (viewInfo.Id != SetViewOperation.None)
                 {
                     var propIndex = index.GetIndex(0);
                     if (propIndex == -1)
                     {
-                        if (viewInfo.IdProp == SetViewOperation.Set)
+                        if (viewInfo.Id == SetViewOperation.Set)
                         {
                             index.SetIndex(0, true, _columnCacheId.Count);
-                            _columnCacheId.Add(viewInfo.GetIdProp());
+                            _columnCacheId.Add(viewInfo.GetId());
                             _columnCacheIdReverse.Add(key);
                         }
                     }
                     else
                     {
-                        if (viewInfo.IdProp == SetViewOperation.Set)
+                        if (viewInfo.Id == SetViewOperation.Set)
                         {
-                            _columnCacheId[propIndex] = viewInfo.GetIdProp();
+                            _columnCacheId[propIndex] = viewInfo.GetId();
                         }
                         else
                         {
@@ -270,23 +257,23 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                     }
                 }
 
-                if (viewInfo.ChildProp != SetViewOperation.None)
+                if (viewInfo.Child != SetViewOperation.None)
                 {
                     var propIndex = index.GetIndex(3);
                     if (propIndex == -1)
                     {
-                        if (viewInfo.ChildProp == SetViewOperation.Set)
+                        if (viewInfo.Child == SetViewOperation.Set)
                         {
                             index.SetIndex(3, true, _columnCacheChild.Count);
-                            _columnCacheChild.Add(viewInfo.GetChildProp());
+                            _columnCacheChild.Add(viewInfo.GetChild());
                             _columnCacheChildReverse.Add(key);
                         }
                     }
                     else
                     {
-                        if (viewInfo.ChildProp == SetViewOperation.Set)
+                        if (viewInfo.Child == SetViewOperation.Set)
                         {
-                            _columnCacheChild[propIndex] = viewInfo.GetChildProp();
+                            _columnCacheChild[propIndex] = viewInfo.GetChild();
                         }
                         else
                         {
@@ -315,24 +302,6 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
         finally
         {
             _columnCacheSlimLock.ExitWriteLock();
-        }
-    }
-
-    public void ForeachByIntPropColumn(Action<long, int> intPropAction)
-    {
-        _columnCacheSlimLock.EnterReadLock();
-        try
-        {
-            var spanIntProp = CollectionsMarshal.AsSpan(_columnCacheIntProp);
-            var spanIntPropReverse = CollectionsMarshal.AsSpan(_columnCacheIntPropReverse);
-            for (int i = 0; i < spanIntProp.Length; i++)
-            {
-                intPropAction(spanIntPropReverse[i], spanIntProp[i]);
-            }
-        }
-        finally
-        {
-            _columnCacheSlimLock.ExitReadLock();
         }
     }
 }
