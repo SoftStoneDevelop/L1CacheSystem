@@ -56,10 +56,12 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _removeExpireRoutine = Task.Factory.StartNew(
-            async () => await RemoveExpireRoutine(_cts.Token),
+            (state) => RemoveExpireRoutine((CancellationToken)state!),
             _cts.Token,
-            TaskCreationOptions.LongRunning,
-            TaskScheduler.Default);
+            _cts.Token,
+            TaskCreationOptions.DenyChildAttach,
+            TaskScheduler.Default)
+            .Unwrap();
 
         return Task.CompletedTask;
     }
@@ -69,7 +71,16 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         if (_removeExpireRoutine != null)
         {
             await _cts!.CancelAsync();
-            await TaskHelpers.WaitEndRoutine(_removeExpireRoutine, cancellationToken).ConfigureAwait(false);
+
+            try
+            {
+                await _removeExpireRoutine.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // ignore
+            }
+
             _removeExpireRoutine = null;
             _cts.Dispose();
         }
@@ -91,11 +102,11 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
 
     private async Task RemoveExpireRoutine(CancellationToken token)
     {
-        var delayTime = TimeSpan.FromSeconds(10);
+        const int delayTime = 10_000;
         while (!token.IsCancellationRequested)
         {
-            ClearExpiredCache();
             await Task.Delay(delayTime, token).ContinueWith((_) => { }, CancellationToken.None).ConfigureAwait(false);
+            ClearExpiredCache();
         }
     }
 
