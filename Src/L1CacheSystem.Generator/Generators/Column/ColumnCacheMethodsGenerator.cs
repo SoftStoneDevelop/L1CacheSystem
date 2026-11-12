@@ -22,6 +22,7 @@ namespace L1CacheSystem.Generator.Generators.Column
             PrivateVars(builder, cacheInfo);
 
             SetViewStruct(builder, cacheInfo);
+            SparseIndexStruct(builder, cacheInfo);
             SetFromViewMethod(builder, cacheInfo);
 
             DeleteMethod(builder, cacheInfo);
@@ -68,6 +69,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using L1CacheSystem;
 using System.Runtime.InteropServices;
+using System.Numerics;
 
 #nullable enable
 ");
@@ -127,7 +129,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         private void PrivateVars(StringBuilder builder, ColumnCacheInfo cacheInfo)
         {
             builder.Append($@"
-    private readonly Dictionary<{cacheInfo.KeyInfo.KeyType.GetFullTypeName()}, SparseIndex> {VarIndexName(cacheInfo.KeyInfo)} = [];
+    private readonly Dictionary<{cacheInfo.KeyInfo.KeyType.GetFullTypeName()}, {SparseIndexStructTypeName(cacheInfo.KeyInfo.CacheName)}> {VarIndexName(cacheInfo.KeyInfo)} = [];
     private readonly ReaderWriterLockSlim {VarSlimLockName(cacheInfo.KeyInfo)} = new();
 ");
             foreach (var columnInfo in cacheInfo.ColumnInfos)
@@ -170,26 +172,22 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             builder.Append($@"
         {VarSlimLockName(keyInfo)}.EnterWriteLock();
         try
-        {{");
+        {{
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(keyInfo)}, key, out var exists);
+            if (!exists)
+            {{
+                index = new();");
 
             if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
             {
                 builder.Append($@"
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(keyInfo)}, key, out var exists);
-            if (!exists)
-            {{
-                index = new();
-                _metrics.IncItemsCount(""{keyInfo.CacheName}"");
-            }}
-            index.Expire =_timeProvider.GetUtcNow() + expiry;");
-            }
-            else
-            {
-                builder.Append($@"
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(keyInfo)}, key, out _);");
+                _metrics.IncItemsCount(""{keyInfo.CacheName}"");");
             }
 
             builder.Append($@"
+            }}
+
+            index.Expire =_timeProvider.GetUtcNow() + expiry;
             var indexProp = index.GetIndex({columnIndex});
             if (indexProp != -1)
             {{
@@ -256,7 +254,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {VarSlimLockName(keyInfo)}.EnterReadLock();
         try
         {{
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, key);
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, key);
             if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
             {{
                 value = default!;
@@ -296,6 +294,124 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         private static string SetViewStructFullTypeName(ColumnCacheInfo cacheInfo)
         {
             return $"{cacheInfo.KeyInfo.ContainsType.Name}.{SetViewStructName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
+        private static string SparseIndexStructTypeName(string cacheName)
+        {
+            return $"SparseIndex{cacheName}";
+        }
+
+        private void SparseIndexStruct(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public struct {SparseIndexStructTypeName(cacheInfo.KeyInfo.CacheName)}
+    {{
+        public {SparseIndexStructTypeName(cacheInfo.KeyInfo.CacheName)}()
+        {{
+            _propsMask = 0;
+            _indexes = [];
+        }}
+
+        private ulong _propsMask;
+        private readonly List<int> _indexes;
+
+        /// <summary>
+        /// The date after which the values will be removed from the cache
+        /// </summary>
+        public DateTimeOffset? Expire {{ get; set; }} = null;
+
+        /// <summary>
+        /// Get index of property
+        /// </summary>
+        /// <returns>-1 if property not exist</returns>
+        public readonly int GetIndex(byte propIndex)
+        {{
+            var indexInList = GetInnerIndex(propIndex);
+            return indexInList == -1 ? -1 : _indexes[indexInList];
+        }}
+
+        /// <summary>
+        /// Get index of property
+        /// </summary>
+        /// <returns>-1 if property not exist</returns>
+        private readonly short GetInnerIndex(byte propIndex)
+        {{
+            if (HaveProp(propIndex))
+            {{
+                // 1 << 2 =                        0b0000_0100
+                // (1 << 2) - 1 =                  0b0000_0011
+                // _propsMask                      0b0000_0010
+                // _propsMask & ((1 << 2) - 1) ==  0b0000_0010
+                // PopCount == 1
+
+                var mask = (1UL << propIndex) - 1;
+                var indexBits = _propsMask & mask;
+
+                var indexInList = (short)BitOperations.PopCount(indexBits);
+
+                return indexInList;
+            }}
+            else
+            {{
+                return -1;
+            }}
+        }}
+
+        public readonly bool HaveProp(byte propIndex)
+        {{
+            var bitMask = (1UL << propIndex);
+            return (_propsMask & bitMask) != 0;
+        }}
+
+        public readonly int HavePropCount()
+        {{
+            return BitOperations.PopCount(_propsMask);
+        }}
+
+        public void SetIndex(byte propIndex, bool haveProp, int index)
+        {{
+            var bitMask = (1UL << propIndex);
+            if (((_propsMask & bitMask) != 0) == haveProp)
+            {{
+                return;
+            }}
+
+            if (!haveProp)
+            {{
+                var indexInList = GetInnerIndex(propIndex);
+                _indexes.RemoveAt(indexInList);
+                _propsMask ^= bitMask;
+            }}
+            else
+            {{
+                // _propsMask =                   0b0110_0101
+                // and _indexes.Count == 4
+                // need insert(2)
+                // propIndex = 3
+                // bitMask ==                     0b0000_1000
+                // _propsMask ^= bitMask;
+                // _propsMask ==                  0b0110_1101
+                // (bitMask) - 1 =                0b0000_0111
+                // _propsMask & ((bitMask) - 1) = 0b0000_0101
+                // insert index = 2
+
+                _propsMask ^= bitMask;
+                var beforeBits = _propsMask & (bitMask - 1);
+                var indexInList = BitOperations.PopCount(beforeBits);
+                _indexes.Insert(indexInList, index);
+            }}
+        }}
+
+        public void UpdateIndex(byte propIndex, int newIndex)
+        {{
+            var indexInList = GetInnerIndex(propIndex);
+            if (indexInList != -1)
+            {{
+                _indexes[indexInList] = newIndex;
+            }}
+        }}
+    }}
+");
         }
 
         private static string SetViewStructName(string cacheName)
@@ -534,7 +650,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {VarSlimLockName(keyInfo)}.EnterWriteLock();
         try
         {{
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, key);
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, key);
             if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
             {{
                 return;
@@ -565,7 +681,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     }}");
             builder.Append($@"
 
-    private void InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(ref SparseIndex index, int columnIndex)
+    private void InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(ref {SparseIndexStructTypeName(keyInfo.CacheName)} index, int columnIndex)
     {{
         index.SetIndex({columnIndex}, false, columnIndex);");
             if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ColumnsCount))
@@ -587,7 +703,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             {VarCollectionReverseName(keyInfo, columnInfo)}[columnIndex] = swapId;
             {VarCollectionReverseName(keyInfo, columnInfo)}.RemoveAt(endOfListIndex);
 
-            ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, swapId);
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, swapId);
             swapIndex.UpdateIndex({columnIndex}, columnIndex);
             {VarCollectionName(keyInfo, columnInfo)}[columnIndex] = {VarCollectionName(keyInfo, columnInfo)}[endOfListIndex];
             {VarCollectionName(keyInfo, columnInfo)}.RemoveAt(endOfListIndex);
@@ -621,24 +737,22 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             builder.Append($@"
         {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
         try
-        {{");
+        {{
+            ref {SparseIndexStructTypeName(cacheInfo.KeyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(cacheInfo.KeyInfo)}, key, out var exists);
+            if (!exists)
+            {{
+                index = new();");
 
             if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
             {
                 builder.Append($@"
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(cacheInfo.KeyInfo)}, key, out var exists);
-            if (!exists)
-            {{
-                index = new();
-                _metrics.IncItemsCount(""{cacheInfo.KeyInfo.CacheName}"");
+                _metrics.IncItemsCount(""{cacheInfo.KeyInfo.CacheName}"");");
+            }
+
+            builder.Append($@"
             }}
+
             index.Expire =_timeProvider.GetUtcNow() + expiry;");
-            }
-            else
-            {
-                builder.Append($@"
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(cacheInfo.KeyInfo)}, key, out _);");
-            }
 
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {

@@ -3,10 +3,8 @@ using L1CacheSystem.Metrics;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Linq;
-using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -555,114 +553,6 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         public void Dispose()
         {
             _semaphore.Dispose();
-        }
-    }
-
-    public struct SparseIndex
-    {
-        public SparseIndex()
-        {
-            _propsMask = 0;
-            _indexes = [];
-        }
-
-        private ulong _propsMask;
-        private readonly List<int> _indexes;
-
-        /// <summary>
-        /// The date after which the values will be removed from the cache
-        /// </summary>
-        public DateTimeOffset? Expire { get; set; } = null;
-
-        /// <summary>
-        /// Get index of property
-        /// </summary>
-        /// <returns>-1 if property not exist</returns>
-        public readonly int GetIndex(byte propIndex)
-        {
-            var indexInList = GetInnerIndex(propIndex);
-            return indexInList == -1 ? -1 : _indexes[indexInList];
-        }
-
-        /// <summary>
-        /// Get index of property
-        /// </summary>
-        /// <returns>-1 if property not exist</returns>
-        private readonly short GetInnerIndex(byte propIndex)
-        {
-            if (HaveProp(propIndex))
-            {
-                // 1 << 2 =                        0b0000_0100
-                // (1 << 2) - 1 =                  0b0000_0011
-                // _propsMask                      0b0000_0010
-                // _propsMask & ((1 << 2) - 1) ==  0b0000_0010
-                // PopCount == 1
-
-                var mask = (1UL << propIndex) - 1;
-                var indexBits = _propsMask & mask;
-
-                var indexInList = (short)BitOperations.PopCount(indexBits);
-
-                return indexInList;
-            }
-            else
-            {
-                return -1;
-            }
-        }
-
-        public readonly bool HaveProp(byte propIndex)
-        {
-            var bitMask = (1UL << propIndex);
-            return (_propsMask & bitMask) != 0;
-        }
-
-        public readonly int HavePropCount()
-        {
-            return BitOperations.PopCount(_propsMask);
-        }
-
-        public void SetIndex(byte propIndex, bool haveProp, int index)
-        {
-            var bitMask = (1UL << propIndex);
-            if (((_propsMask & bitMask) != 0) == haveProp)
-            {
-                return;
-            }
-
-            if (!haveProp)
-            {
-                var indexInList = GetInnerIndex(propIndex);
-                _indexes.RemoveAt(indexInList);
-                _propsMask ^= bitMask;
-            }
-            else
-            {
-                // _propsMask =                   0b0110_0101
-                // and _indexes.Count == 4
-                // need insert(2)
-                // propIndex = 3
-                // bitMask ==                     0b0000_1000
-                // _propsMask ^= bitMask;
-                // _propsMask ==                  0b0110_1101
-                // (bitMask) - 1 =                0b0000_0111
-                // _propsMask & ((bitMask) - 1) = 0b0000_0101
-                // insert index = 2
-
-                _propsMask ^= bitMask;
-                var beforeBits = _propsMask & (bitMask - 1);
-                var indexInList = BitOperations.PopCount(beforeBits);
-                _indexes.Insert(indexInList, index);
-            }
-        }
-
-        public void UpdateIndex(byte propIndex, int newIndex)
-        {
-            var indexInList = GetInnerIndex(propIndex);
-            if (indexInList != -1)
-            {
-                _indexes[indexInList] = newIndex;
-            }
         }
     }
 }
