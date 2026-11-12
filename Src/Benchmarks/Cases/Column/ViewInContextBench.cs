@@ -18,7 +18,7 @@ public class ViewInContextBench
     private FakeMeterFactory? _meterFactory;
     private CacheSystem? _cacheSystem;
 
-    [Params(10_000, 25_000, 50_000, 100_000, 1_000_000)]
+    [Params(50_000, 100_000, 1_000_000)]
     public int Size;
 
     [IterationSetup]
@@ -90,6 +90,23 @@ public class ViewInContextBench
             {
                 sum += span[i];
             }
+        });
+    }
+
+    [Benchmark(Description = "ViewInContextInter")]
+    public async Task SpanIn2()
+    {
+        var sum = 0;
+        _cacheSystem!.ViewInContextColumnCache((context) =>
+        {
+            var span = context.GetIntPropSpan();
+            var interSum = 0;
+            for (int i = 0; i < span.Length; i++)
+            {
+                interSum += span[i];
+            }
+
+            sum = interSum;
         });
     }
 }
