@@ -11,7 +11,7 @@ internal class Program
     {
         //BenchmarkRunner.Run<GetIntColumnBench>();
         //BenchmarkRunner.Run<SetViewBench>();
-        BenchmarkRunner.Run<ForeachByIntColumnBench>();
+        BenchmarkRunner.Run<ViewInContextBench>();
         //BenchmarkRunner.Run<UpdateColumnBench>();
 
         //BenchmarkRunner.Run<GetMemoryCacheBench>();

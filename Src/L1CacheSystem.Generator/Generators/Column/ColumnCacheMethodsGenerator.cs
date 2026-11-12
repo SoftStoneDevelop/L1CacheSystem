@@ -23,7 +23,10 @@ namespace L1CacheSystem.Generator.Generators.Column
 
             SetViewStruct(builder, cacheInfo);
             SparseIndexStruct(builder, cacheInfo);
+            ViewContextStruct(builder, cacheInfo);
+
             SetFromViewMethod(builder, cacheInfo);
+            ViewContextMethod(builder, cacheInfo);
 
             DeleteMethod(builder, cacheInfo);
 
@@ -33,9 +36,6 @@ namespace L1CacheSystem.Generator.Generators.Column
                 SetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
                 TryGetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
                 DeleteColumnMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
-
-                SpanInColumnMethod(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
-                SpanInColumnWithKeyMethod(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
             }
 
             EndClass(builder);
@@ -47,15 +47,13 @@ namespace L1CacheSystem.Generator.Generators.Column
         {
             yield return SetFromViewMethodDeclaration(cacheInfo);
             yield return DeleteMethodDeclaration(cacheInfo);
+            yield return ViewContextMethodDeclaration(cacheInfo);
 
             foreach (var columnInfo in cacheInfo.ColumnInfos)
             {
                 yield return SetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return TryGetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return DeleteColumnMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
-
-                yield return SpanInColumnMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
-                yield return SpanInColumnWithKeyMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
             }
         }
 
@@ -292,11 +290,6 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         }}
     }}
 ");
-        }
-
-        private static string SetViewStructFullTypeName(ColumnCacheInfo cacheInfo)
-        {
-            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{SetViewStructName(cacheInfo.KeyInfo.CacheName)}";
         }
 
         private static string SparseIndexStructTypeName(string cacheName)
@@ -550,6 +543,11 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        private static string SetViewStructFullTypeName(ColumnCacheInfo cacheInfo)
+        {
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{SetViewStructName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
         private static string SetViewStructName(string cacheName)
         {
             return $"SetView{cacheName}";
@@ -576,50 +574,60 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
-        private string SpanInColumnWithKeyMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private static string ViewContextStructFullTypeName(ColumnCacheInfo cacheInfo)
         {
-            return $"void SpanIn{keyInfo.CacheName}{columnInfo.ColumnName}(Action<ReadOnlySpan<{keyInfo.KeyType.GetFullTypeName()}>, ReadOnlySpan<{columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}>> action)";
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{ViewContextStructName(cacheInfo.KeyInfo.CacheName)}";
         }
 
-        private void SpanInColumnWithKeyMethod(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private static string ViewContextStructName(string cacheName)
+        {
+            return $"ViewContext{cacheName}";
+        }
+
+        private void ViewContextStruct(StringBuilder builder, ColumnCacheInfo cacheInfo)
         {
             builder.Append($@"
-    public {SpanInColumnWithKeyMethodDeclaration(keyInfo, columnInfo)}
+    public readonly struct {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}
     {{
-        {VarSlimLockName(keyInfo)}.EnterReadLock();
-        try
+        public {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}({cacheInfo.KeyInfo.ContainsType.Name} source)
         {{
-            var spanColumn = CollectionsMarshal.AsSpan({VarCollectionName(keyInfo, columnInfo)});
-            var spanColumnReverse = CollectionsMarshal.AsSpan({VarCollectionReverseName(keyInfo, columnInfo)});
-            action(spanColumnReverse, spanColumn);
+            _source = source;
         }}
-        finally
-        {{
-            {VarSlimLockName(keyInfo)}.ExitReadLock();
-        }}
+
+        private {cacheInfo.KeyInfo.ContainsType.Name} _source {{ get; }}");
+
+            foreach (var columnInfo in cacheInfo.ColumnInfos)
+            {
+                builder.Append($@"
+        public readonly ReadOnlySpan<{columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}> Get{columnInfo.ColumnName}Span() => CollectionsMarshal.AsSpan(_source.{VarCollectionName(cacheInfo.KeyInfo, columnInfo)});
+        public readonly ReadOnlySpan<{cacheInfo.KeyInfo.KeyType.GetFullTypeName()}> Get{columnInfo.ColumnName}ReverseKeySpan() => CollectionsMarshal.AsSpan(_source.{VarCollectionReverseName(cacheInfo.KeyInfo, columnInfo)});
+");
+            }
+
+            builder.Append($@"
     }}
 ");
         }
 
-        private string SpanInColumnMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private string ViewContextMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
-            return $"void SpanIn{keyInfo.CacheName}{columnInfo.ColumnName}(Action<ReadOnlySpan<{columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}>> action)";
+            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}(Action<{ViewContextStructFullTypeName(cacheInfo)}> action)";
         }
 
-        private void SpanInColumnMethod(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private void ViewContextMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
         {
             builder.Append($@"
-    public {SpanInColumnMethodDeclaration(keyInfo, columnInfo)}
+    public {ViewContextMethodDeclaration(cacheInfo)}
     {{
-        {VarSlimLockName(keyInfo)}.EnterReadLock();
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
         try
         {{
-            var spanColumn = CollectionsMarshal.AsSpan({VarCollectionName(keyInfo, columnInfo)});
-            action(spanColumn);
+            var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(context);
         }}
         finally
         {{
-            {VarSlimLockName(keyInfo)}.ExitReadLock();
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();
         }}
     }}
 ");
