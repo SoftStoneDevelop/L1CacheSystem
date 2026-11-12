@@ -1,4 +1,5 @@
 ﻿using L1CacheSystem.Generator.AttributeInfo;
+using L1CacheSystem.Generator.Generators.Lock;
 using L1CacheSystem.Generator.Helpers;
 using Microsoft.CodeAnalysis;
 using System.Collections.Generic;
@@ -14,22 +15,24 @@ namespace L1CacheSystem.Generator.Generators.Column
             StringBuilder builder,
             string partName)
         {
-            Usings(builder, cacheInfo);
+            Usings(builder);
             Namespace(builder, cacheInfo);
             StartClass(builder, cacheInfo);
 
             PrivateVars(builder, cacheInfo);
 
             SetViewStruct(builder, cacheInfo);
+            RemoveExpired(builder, cacheInfo);
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {
                 SetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
                 TryGetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
+                DeleteMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
                 ForeachByColumn(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
                 ForeachByColumnWithKey(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
             }
 
-            EndClass(builder, cacheInfo);
+            EndClass(builder);
 
             context.AddSource($"{partName}{cacheInfo.KeyInfo.CacheName}.g.cs", builder.ToString());
         }
@@ -40,12 +43,13 @@ namespace L1CacheSystem.Generator.Generators.Column
             {
                 yield return SetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return TryGetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
+                yield return DeleteMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return ForeachByColumnKeyMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return ForeachByColumnWithKeyMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
             }
         }
 
-        private void Usings(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        private void Usings(StringBuilder builder)
         {
             builder.Append(@"
 using Microsoft.Extensions.Logging;
@@ -77,22 +81,38 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
-        private string VarIndexName(KeyColumnInfo keyInfo)
+        public static IEnumerable<string> CollectionsToClearNames(ColumnCacheInfo cacheInfo)
+        {
+            yield return VarIndexName(cacheInfo.KeyInfo);
+
+            foreach (var columnInfo in cacheInfo.ColumnInfos)
+            {
+                yield return VarCollectionName(cacheInfo.KeyInfo, columnInfo);
+                yield return VarCollectionReverseName(cacheInfo.KeyInfo, columnInfo);
+            }
+        }
+
+        public static IEnumerable<string> DisposedResourcesNames(ColumnCacheInfo cacheInfo)
+        {
+            yield return VarSlimLockName(cacheInfo.KeyInfo);
+        }
+
+        private static string VarIndexName(KeyColumnInfo keyInfo)
         {
             return $"_{keyInfo.CacheName.ToCamelCase()}Indexes";
         }
 
-        private string VarSlimLockName(KeyColumnInfo keyInfo)
+        private static string VarSlimLockName(KeyColumnInfo keyInfo)
         {
             return $"_{keyInfo.CacheName.ToCamelCase()}SlimLock";
         }
 
-        private string VarCollectionName(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private static string VarCollectionName(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             return $"_{keyInfo.CacheName.ToCamelCase()}{columnInfo.ColumnName}";
         }
 
-        private string VarCollectionReverseName(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private static string VarCollectionReverseName(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             return $"{VarCollectionName(keyInfo, columnInfo)}Reverse";
         }
@@ -130,30 +150,17 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {VarSlimLockName(keyInfo)}.EnterWriteLock();
         try
         {{
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, key);
-            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
+            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(keyInfo)}, key, out _);
+            var indexProp = index.GetIndex({columnIndex});
+            if (indexProp != -1)
             {{
-                var si = new SparseIndex();
-
-                si.SetIndex({columnIndex}, true, {VarCollectionName(keyInfo, columnInfo)}.Count);
-                {VarCollectionName(keyInfo, columnInfo)}.Add(value);
-                {VarCollectionReverseName(keyInfo, columnInfo)}.Add(key);
-
-                {VarIndexName(keyInfo)}.Add(key, si);
+                {VarCollectionName(keyInfo, columnInfo)}[indexProp] = value;
             }}
             else
             {{
-                var indexProp = index.GetIndex({columnIndex});
-                if (indexProp != -1)
-                {{
-                    {VarCollectionName(keyInfo, columnInfo)}[indexProp] = value;
-                }}
-                else
-                {{
-                    index.SetIndex({columnIndex}, true, {VarCollectionName(keyInfo, columnInfo)}.Count);
-                    {VarCollectionName(keyInfo, columnInfo)}.Add(value);
-                    {VarCollectionReverseName(keyInfo, columnInfo)}.Add(key);
-                }}
+                index.SetIndex({columnIndex}, true, {VarCollectionName(keyInfo, columnInfo)}.Count);
+                {VarCollectionName(keyInfo, columnInfo)}.Add(value);
+                {VarCollectionReverseName(keyInfo, columnInfo)}.Add(key);
             }}
         }}
         finally
@@ -286,7 +293,188 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
-        private void EndClass(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        public static string RemoveExpiredMethodName(string cacheName)
+        {
+            return $"RemoveExpired{cacheName}";
+        }
+
+        private void RemoveExpired(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            var keyInfo = cacheInfo.KeyInfo;
+            builder.Append($@"
+    private void {RemoveExpiredMethodName(keyInfo.CacheName)}()
+    {{
+        {VarSlimLockName(keyInfo)}.EnterUpgradeableReadLock();
+        try
+        {{
+            var currentTime = _timeProvider.GetUtcNow();
+            var keysToDelete = new List<{keyInfo.KeyType.GetFullTypeName()}>();
+            var keysToDeleteSpan = CollectionsMarshal.AsSpan(keysToDelete);
+            var count = keysToDelete.Count;
+            foreach (var pair in {VarIndexName(keyInfo)})
+            {{
+                if (!pair.Value.Expire.HasValue)
+                {{
+                    continue;
+                }}
+
+                if (currentTime > pair.Value.Expire)
+                {{
+                    if (keysToDeleteSpan.Length == count)
+                    {{
+                        CollectionsMarshal.SetCount(keysToDelete, count + 1);
+                        keysToDeleteSpan = CollectionsMarshal.AsSpan(keysToDelete);
+                    }}
+
+                    keysToDeleteSpan[count++] = pair.Key;
+                }}
+            }}
+
+            if (count == 0)
+            {{
+                return;
+            }}
+
+            {VarSlimLockName(keyInfo)}.EnterWriteLock();
+            try
+            {{
+                for (var i = 0; i < count; i++)
+                {{
+                    var keyToDelete = keysToDeleteSpan[i];
+                    var resource = {LockMethodsGenerator.GetLockKeyMethodName(keyInfo.CacheName)}(keyToDelete);
+                    _locks.TryGetValue(resource, out var keyLock);
+                    if (keyLock?.TryEnterBusy() == false)
+                    {{
+                        // lock busy
+                        continue;
+                    }}
+
+                    try
+                    {{
+                        var inWait = keyLock?.InWait() ?? 0;
+                        if (inWait != 0)
+                        {{
+                            continue;
+                        }}
+
+                        if ({VarIndexName(keyInfo)}.Remove(keyToDelete, out var index))
+                        {{");
+
+            if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
+            {
+                builder.Append($@"
+                            _metrics.DecItemsCount(""{keyInfo.CacheName}"");");
+            }
+
+            builder.Append($@"
+                            if (currentTime < index.Expire)
+                            {{
+                                {VarIndexName(keyInfo)}.Add(keyToDelete, index);");
+
+            if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
+            {
+                builder.Append($@"
+                                _metrics.IncItemsCount(""{keyInfo.CacheName}"");");
+            }
+
+            builder.Append($@"
+                                continue;
+                            }}");
+
+            foreach (var columnInfo in cacheInfo.ColumnInfos)
+            {
+                builder.Append($@"
+                            // TODO {columnInfo.ColumnName}");
+            }
+
+            builder.Append($@"
+                        }}
+                    }}
+                    finally
+                    {{
+                        if (keyLock?.TryExitBusy() == false)
+                        {{
+                            LogResourceExitBusyError(resource);
+                        }}
+                    }}
+                }}
+            }}
+            finally
+            {{
+                {VarSlimLockName(keyInfo)}.ExitWriteLock();
+            }}
+        }}
+        finally
+        {{
+            {VarSlimLockName(keyInfo)}.ExitUpgradeableReadLock();
+        }}
+    }}");
+
+        }
+
+        private string DeleteMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        {
+            return $"void Delete{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key)";
+        }
+
+        private void DeleteMethod(
+            StringBuilder builder,
+            KeyColumnInfo keyInfo,
+            int columnIndex,
+            ColumnInfo columnInfo)
+        {
+            builder.Append($@"
+    public {DeleteMethodDeclaration(keyInfo, columnInfo)}
+    {{
+        {VarSlimLockName(keyInfo)}.EnterWriteLock();
+        try
+        {{
+            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, key);
+            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
+            {{
+                return;
+            }}
+            else
+            {{
+                var columnIndex = index.GetIndex({columnIndex});
+                if (columnIndex == -1)
+                {{
+                    return;
+                }}
+                
+                InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(columnIndex);
+            }}
+        }}
+        finally
+        {{
+            {VarSlimLockName(keyInfo)}.ExitWriteLock();
+        }}
+    }}
+
+    private void InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(int columnIndex)
+    {{
+        if (columnIndex == {VarCollectionName(keyInfo, columnInfo)}.Count - 1)
+        {{
+            {VarCollectionName(keyInfo, columnInfo)}.RemoveAt(columnIndex);
+            {VarCollectionReverseName(keyInfo, columnInfo)}.RemoveAt(columnIndex);
+        }}
+        else
+        {{
+            var endOfListIndex = {VarCollectionName(keyInfo, columnInfo)}.Count - 1;
+            var swapId = _columnCacheChildReverse[endOfListIndex];
+            {VarCollectionReverseName(keyInfo, columnInfo)}[columnIndex] = swapId;
+            {VarCollectionReverseName(keyInfo, columnInfo)}.RemoveAt(endOfListIndex);
+
+            ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, swapId);
+            swapIndex.SetIndex({columnIndex}, false, columnIndex);
+            {VarCollectionName(keyInfo, columnInfo)}[columnIndex] = {VarCollectionName(keyInfo, columnInfo)}[endOfListIndex];
+            {VarCollectionName(keyInfo, columnInfo)}.RemoveAt(endOfListIndex);
+        }}
+    }}
+");
+        }
+
+        private void EndClass(StringBuilder builder)
         {
             builder.Append($@"
 }}

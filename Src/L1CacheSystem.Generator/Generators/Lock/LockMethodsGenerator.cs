@@ -29,9 +29,9 @@ namespace L1CacheSystem.Generator.Generators.Lock
             context.AddSource($"{partName}{cacheInfo.CacheName}Locks.g.cs", builder.ToString());
         }
 
-        public string GetLockKeyMethodName(Param cacheInfo)
+        public static string GetLockKeyMethodName(string cacheName)
         {
-            return $"Get{cacheInfo.CacheName}LockKey";
+            return $"Get{cacheName}LockKey";
         }
 
         public string GetLockMethodName(Param cacheInfo)
@@ -99,14 +99,14 @@ public partial class {cacheInfo.ContainsType.Name}
         {
             string collectMetricsStr = cacheInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.GetLockTime) ? "true" : "false";
             builder.Append($@"
-    private static string {GetLockKeyMethodName(cacheInfo)}({cacheInfo.KeyType.GetFullTypeName()} {cacheInfo.CacheName.ToCamelCase()}LockKey)
+    private static string {GetLockKeyMethodName(cacheInfo.CacheName)}({cacheInfo.KeyType.GetFullTypeName()} {cacheInfo.CacheName.ToCamelCase()}LockKey)
     {{
         return $""lock:{{{GetLockPrefixName(cacheInfo)}}}:{{{cacheInfo.CacheName.ToCamelCase()}LockKey}}"";
     }}
 
     public async {GetLockMethodDeclaration(cacheInfo)}
     {{
-        await GetLockAsync({GetLockKeyMethodName(cacheInfo)}({cacheInfo.CacheName.ToCamelCase()}Key), ""{cacheInfo.CacheName}"", lockGuard, {collectMetricsStr}, cancellationToken);
+        await GetLockAsync({GetLockKeyMethodName(cacheInfo.CacheName)}({cacheInfo.CacheName.ToCamelCase()}Key), ""{cacheInfo.CacheName}"", lockGuard, {collectMetricsStr}, cancellationToken);
     }}
 ");
         }

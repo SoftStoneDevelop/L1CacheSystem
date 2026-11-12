@@ -110,12 +110,13 @@ namespace L1CacheSystem.Generator.Processors
 
             var builder = new StringBuilder();
             var interfaceGeneratorParams = new Dictionary<INamedTypeSymbol, List<CacheInterfaceGenerator.Params>>(SymbolEqualityComparer.Default);
+            var commonGeneratorParams = new List<CacheCommonMethodsGenerator.ParamsBase>();
 
             builder.Clear();
-            EntityCache(builder, interfaceGeneratorParams, context, cancellationToken);
+            EntityCache(builder, interfaceGeneratorParams, commonGeneratorParams, context, cancellationToken);
 
             builder.Clear();
-            ColumnCache(builder, interfaceGeneratorParams, context, cancellationToken);
+            ColumnCache(builder, interfaceGeneratorParams, commonGeneratorParams, context, cancellationToken);
 
             var interfaceGenerator = new CacheInterfaceGenerator();
             foreach (var interfaceGeneratorParam in interfaceGeneratorParams)
@@ -131,11 +132,21 @@ namespace L1CacheSystem.Generator.Processors
                     "",
                     $"{interfaceGeneratorParam.Key.Name}");
             }
+
+            builder.Clear();
+            var commonMethodGenerator = new CacheCommonMethodsGenerator();
+            commonMethodGenerator.GenerateAndSave(
+                context,
+                _containsType,
+                commonGeneratorParams.ToArray(),
+                builder,
+                $"{_containsType.Name}");
         }
 
         private void ColumnCache(
             StringBuilder builder,
             Dictionary<INamedTypeSymbol, List<CacheInterfaceGenerator.Params>> interfaceGeneratorParams,
+            List<CacheCommonMethodsGenerator.ParamsBase> commonGeneratorParams,
             SourceProductionContext context,
             CancellationToken cancellationToken)
         {
@@ -167,6 +178,17 @@ namespace L1CacheSystem.Generator.Processors
                     lockParam,
                     builder,
                     $"{_containsType.Name}");
+
+                commonGeneratorParams.Add(new CacheCommonMethodsGenerator.ParamsColumn
+                {
+                    GetLockKeyMthodName = LockMethodsGenerator.GetLockKeyMethodName(columnCacheInfo.KeyInfo.CacheName),
+                    CacheTypeName = columnCacheInfo.KeyInfo.CacheName,
+                    MetricCollectFlags = columnCacheInfo.KeyInfo.MetricCollectFlags,
+                    RemoveExpiredMethodName = ColumnCacheMethodsGenerator.RemoveExpiredMethodName(columnCacheInfo.KeyInfo.CacheName),
+                    CollectionsToClearNames = ColumnCacheMethodsGenerator.CollectionsToClearNames(columnCacheInfo).ToArray(),
+                    DisposedResourcesNames = ColumnCacheMethodsGenerator.DisposedResourcesNames(columnCacheInfo).ToArray()
+
+                });
 
                 foreach (var declaration in cacheGenerator.GetPublicMethodDeclarations(columnCacheInfo))
                 {
@@ -201,12 +223,12 @@ namespace L1CacheSystem.Generator.Processors
         private void EntityCache(
             StringBuilder builder,
             Dictionary<INamedTypeSymbol, List<CacheInterfaceGenerator.Params>> interfaceGeneratorParams,
+            List<CacheCommonMethodsGenerator.ParamsBase> commonGeneratorParams,
             SourceProductionContext context,
             CancellationToken cancellationToken)
         {
             var cacheGenerator = new CacheMethodsGenerator();
             var lockGenerator = new LockMethodsGenerator();
-            var commonGeneratorParams = new List<CacheCommonMethodsGenerator.Params>(_cacheInfos.Count);
             foreach (var cacheInfo in _cacheInfos)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -218,7 +240,6 @@ namespace L1CacheSystem.Generator.Processors
                     builder,
                     $"{_containsType.Name}");
 
-                builder.Clear();
                 var lockParam = new LockMethodsGenerator.Param
                 {
                     CacheName = cacheInfo.CacheName,
@@ -226,16 +247,18 @@ namespace L1CacheSystem.Generator.Processors
                     KeyType = cacheInfo.KeyType,
                     MetricCollectFlags = cacheInfo.MetricCollectFlags
                 };
+
+                builder.Clear();
                 lockGenerator.GenerateAndSave(
                     context,
                     lockParam,
                     builder,
                     $"{_containsType.Name}");
 
-                commonGeneratorParams.Add(new CacheCommonMethodsGenerator.Params
+                commonGeneratorParams.Add(new CacheCommonMethodsGenerator.ParamsEntity
                 {
                     ItemsCollectionName = cacheGenerator.CollectionName(cacheInfo),
-                    GetLockKeyMthodName = lockGenerator.GetLockKeyMethodName(lockParam),
+                    GetLockKeyMthodName = LockMethodsGenerator.GetLockKeyMethodName(lockParam.CacheName),
                     CacheTypeName = cacheInfo.CacheName,
                     MetricCollectFlags = cacheInfo.MetricCollectFlags
                 });
@@ -268,16 +291,6 @@ namespace L1CacheSystem.Generator.Processors
                     });
                 }
             }
-
-            builder.Clear();
-            var commonMethodGenerator = new CacheCommonMethodsGenerator();
-            commonMethodGenerator.GenerateAndSave(
-                context,
-                _containsType,
-                commonGeneratorParams.ToArray(),
-                builder,
-                "",
-                $"{_containsType.Name}");
         }
 
         public override void Reset()

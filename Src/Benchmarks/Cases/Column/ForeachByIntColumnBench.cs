@@ -35,7 +35,7 @@ public class ForeachByIntColumnBench
             IntProp = SetViewOperation.Set,
             FuncIntProp = static (source) => source.IntProp,
             FuncDoubleProp = static (source) => source.DoubleProp.HasValue ? source.DoubleProp : null,
-            FuncChild = static (source) => source.Child ?? null
+            FuncChild = static (source) => source.Child ?? null!
         };
 
         for (int i = 0; i < Size; i++)
@@ -76,7 +76,7 @@ public class ForeachByIntColumnBench
     public async Task GetEntity()
     {
         var sum = 0;
-        _cacheSystem!.ForeachBitsNone((key, value) => { sum += value.IntProp; });
+        _cacheSystem!.ForeachBitsNone((value) => { sum += value.IntProp; });
     }
 
     [Benchmark(Description = "Column")]

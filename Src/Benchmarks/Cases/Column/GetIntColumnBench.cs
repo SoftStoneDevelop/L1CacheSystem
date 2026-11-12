@@ -35,7 +35,7 @@ public class GetIntColumnBench
             IntProp = SetViewOperation.Set,
             FuncIntProp = static (source) => source.IntProp,
             FuncDoubleProp = static (source) => source.DoubleProp.HasValue ? source.DoubleProp : null,
-            FuncChild = static (source) => source.Child ?? null
+            FuncChild = static (source) => source.Child ?? null!
         };
 
         for (int i = 0; i < Size; i++)
@@ -77,7 +77,9 @@ public class GetIntColumnBench
     {
         for (long i = 0; i < Size; i++)
         {
+#pragma warning disable IDE0059 // Unnecessary assignment of a value
             var value = _cacheSystem!.GetBitsNone(i, ReturnType.Reference)!.IntProp;
+#pragma warning restore IDE0059 // Unnecessary assignment of a value
         }
     }
 
@@ -86,7 +88,9 @@ public class GetIntColumnBench
     {
         for (long i = 0; i < Size; i++)
         {
+#pragma warning disable IDE0059 // Unnecessary assignment of a value
             _ = _cacheSystem!.TryGetColumnCacheIntProp(i, out var intProp);
+#pragma warning restore IDE0059 // Unnecessary assignment of a value
         }
     }
 }

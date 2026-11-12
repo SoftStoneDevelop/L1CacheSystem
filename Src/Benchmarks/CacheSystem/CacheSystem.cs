@@ -4,10 +4,8 @@ using L1CacheSystem.Attributes.Enums;
 using L1CacheSystem.Enums;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.Runtime.InteropServices;
-using System.Threading;
 
 namespace Benchmarks.Backend;
 
@@ -77,14 +75,6 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
     {
     }
 
-    public void ForeachBitsNone(Action<long, Benchmarks.Model.ValueClass> action)
-    {
-        foreach (var pair in _bitsNoneCollection)
-        {
-            action(pair.Key, pair.Value.Value);
-        }
-    }
-
     public void ForeachBitsNone(Action<Benchmarks.Model.ValueClass> action)
     {
         foreach (var value in _bitsNoneCollection.Values)
@@ -98,203 +88,103 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
         _columnCacheSlimLock.EnterWriteLock();
         try
         {
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrNullRef(_columnCacheIndexes, key);
-            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
+            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault(_columnCacheIndexes, key, out _);
+            if (viewInfo.Id != SetViewOperation.None)
             {
-                var si = new SparseIndex();
-                if (viewInfo.Id == SetViewOperation.Set)
+                var propIndex = index.GetIndex(0);
+                if (propIndex == -1)
                 {
-                    si.SetIndex(0, true, _columnCacheId.Count);
-                    _columnCacheId.Add(viewInfo.GetId());
-                    _columnCacheIdReverse.Add(key);
+                    if (viewInfo.Id == SetViewOperation.Set)
+                    {
+                        index.SetIndex(0, true, _columnCacheId.Count);
+                        _columnCacheId.Add(viewInfo.GetId());
+                        _columnCacheIdReverse.Add(key);
+                    }
                 }
-
-                if (viewInfo.IntProp == SetViewOperation.Set)
+                else
                 {
-                    si.SetIndex(1, true, _columnCacheIntProp.Count);
-                    _columnCacheIntProp.Add(viewInfo.GetIntProp());
-                    _columnCacheIntPropReverse.Add(key);
+                    if (viewInfo.Id == SetViewOperation.Set)
+                    {
+                        _columnCacheId[propIndex] = viewInfo.GetId();
+                    }
+                    else
+                    {
+                        InternalDeleteColumnCacheId(0);
+                    }
                 }
-
-                if (viewInfo.DoubleProp == SetViewOperation.Set)
-                {
-                    si.SetIndex(2, true, _columnCacheDoubleProp.Count);
-                    _columnCacheDoubleProp.Add(viewInfo.GetDoubleProp());
-                    _columnCacheDoublePropReverse.Add(key);
-                }
-
-                if (viewInfo.Child == SetViewOperation.Set)
-                {
-                    si.SetIndex(3, true, _columnCacheChild.Count);
-                    _columnCacheChild.Add(viewInfo.GetChild());
-                    _columnCacheChildReverse.Add(key);
-                }
-
-                _columnCacheIndexes.Add(key, si);
             }
-            else
+
+            if (viewInfo.IntProp != SetViewOperation.None)
             {
-                if (viewInfo.Id != SetViewOperation.None)
+                var propIndex = index.GetIndex(1);
+                if (propIndex == -1)
                 {
-                    var propIndex = index.GetIndex(0);
-                    if (propIndex == -1)
+                    if (viewInfo.IntProp == SetViewOperation.Set)
                     {
-                        if (viewInfo.Id == SetViewOperation.Set)
-                        {
-                            index.SetIndex(0, true, _columnCacheId.Count);
-                            _columnCacheId.Add(viewInfo.GetId());
-                            _columnCacheIdReverse.Add(key);
-                        }
-                    }
-                    else
-                    {
-                        if (viewInfo.Id == SetViewOperation.Set)
-                        {
-                            _columnCacheId[propIndex] = viewInfo.GetId();
-                        }
-                        else
-                        {
-                            if (propIndex == _columnCacheId.Count - 1)
-                            {
-                                _columnCacheId.RemoveAt(propIndex);
-                                _columnCacheIdReverse.RemoveAt(propIndex);
-                            }
-                            else
-                            {
-                                var endOfListIndex = _columnCacheId.Count - 1;
-                                var swapId = _columnCacheIdReverse[endOfListIndex];
-                                _columnCacheIdReverse[propIndex] = swapId;
-                                _columnCacheIdReverse.RemoveAt(endOfListIndex);
-
-                                ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_columnCacheIndexes, swapId);
-                                swapIndex.SetIndex(0, false, propIndex);
-                                _columnCacheId[propIndex] = _columnCacheId[endOfListIndex];
-                                _columnCacheId.RemoveAt(endOfListIndex);
-                            }
-                        }
+                        index.SetIndex(1, true, _columnCacheIntProp.Count);
+                        _columnCacheIntProp.Add(viewInfo.GetIntProp());
+                        _columnCacheIntPropReverse.Add(key);
                     }
                 }
-
-                if (viewInfo.IntProp != SetViewOperation.None)
+                else
                 {
-                    var propIndex = index.GetIndex(1);
-                    if (propIndex == -1)
+                    if (viewInfo.IntProp == SetViewOperation.Set)
                     {
-                        if (viewInfo.IntProp == SetViewOperation.Set)
-                        {
-                            index.SetIndex(1, true, _columnCacheIntProp.Count);
-                            _columnCacheIntProp.Add(viewInfo.GetIntProp());
-                            _columnCacheIntPropReverse.Add(key);
-                        }
+                        _columnCacheIntProp[propIndex] = viewInfo.GetIntProp();
                     }
                     else
                     {
-                        if (viewInfo.IntProp == SetViewOperation.Set)
-                        {
-                            _columnCacheIntProp[propIndex] = viewInfo.GetIntProp();
-                        }
-                        else
-                        {
-                            if (propIndex == _columnCacheIntProp.Count - 1)
-                            {
-                                _columnCacheIntProp.RemoveAt(propIndex);
-                                _columnCacheIntPropReverse.RemoveAt(propIndex);
-                            }
-                            else
-                            {
-                                var endOfListIndex = _columnCacheIntProp.Count - 1;
-                                var swapId = _columnCacheIntPropReverse[endOfListIndex];
-                                _columnCacheIntPropReverse[propIndex] = swapId;
-                                _columnCacheIntPropReverse.RemoveAt(endOfListIndex);
-
-                                ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_columnCacheIndexes, swapId);
-                                swapIndex.SetIndex(1, false, propIndex);
-                                _columnCacheIntProp[propIndex] = _columnCacheIntProp[endOfListIndex];
-                                _columnCacheIntProp.RemoveAt(endOfListIndex);
-                            }
-                        }
+                        InternalDeleteColumnCacheIntProp(1);
                     }
                 }
+            }
 
-                if (viewInfo.DoubleProp != SetViewOperation.None)
+            if (viewInfo.DoubleProp != SetViewOperation.None)
+            {
+                var propIndex = index.GetIndex(2);
+                if (propIndex == -1)
                 {
-                    var propIndex = index.GetIndex(2);
-                    if (propIndex == -1)
+                    if (viewInfo.DoubleProp == SetViewOperation.Set)
                     {
-                        if (viewInfo.DoubleProp == SetViewOperation.Set)
-                        {
-                            index.SetIndex(2, true, _columnCacheDoubleProp.Count);
-                            _columnCacheDoubleProp.Add(viewInfo.GetDoubleProp());
-                            _columnCacheDoublePropReverse.Add(key);
-                        }
-                    }
-                    else
-                    {
-                        if (viewInfo.DoubleProp == SetViewOperation.Set)
-                        {
-                            _columnCacheDoubleProp[propIndex] = viewInfo.GetDoubleProp();
-                        }
-                        else
-                        {
-                            if (propIndex == _columnCacheDoubleProp.Count - 1)
-                            {
-                                _columnCacheDoubleProp.RemoveAt(propIndex);
-                                _columnCacheDoublePropReverse.RemoveAt(propIndex);
-                            }
-                            else
-                            {
-                                var endOfListIndex = _columnCacheDoubleProp.Count - 1;
-                                var swapId = _columnCacheDoublePropReverse[endOfListIndex];
-                                _columnCacheDoublePropReverse[propIndex] = swapId;
-                                _columnCacheDoublePropReverse.RemoveAt(endOfListIndex);
-
-                                ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_columnCacheIndexes, swapId);
-                                swapIndex.SetIndex(2, false, propIndex);
-                                _columnCacheDoubleProp[propIndex] = _columnCacheDoubleProp[endOfListIndex];
-                                _columnCacheDoubleProp.RemoveAt(endOfListIndex);
-                            }
-                        }
+                        index.SetIndex(2, true, _columnCacheDoubleProp.Count);
+                        _columnCacheDoubleProp.Add(viewInfo.GetDoubleProp());
+                        _columnCacheDoublePropReverse.Add(key);
                     }
                 }
-
-                if (viewInfo.Child != SetViewOperation.None)
+                else
                 {
-                    var propIndex = index.GetIndex(3);
-                    if (propIndex == -1)
+                    if (viewInfo.DoubleProp == SetViewOperation.Set)
                     {
-                        if (viewInfo.Child == SetViewOperation.Set)
-                        {
-                            index.SetIndex(3, true, _columnCacheChild.Count);
-                            _columnCacheChild.Add(viewInfo.GetChild());
-                            _columnCacheChildReverse.Add(key);
-                        }
+                        _columnCacheDoubleProp[propIndex] = viewInfo.GetDoubleProp();
                     }
                     else
                     {
-                        if (viewInfo.Child == SetViewOperation.Set)
-                        {
-                            _columnCacheChild[propIndex] = viewInfo.GetChild();
-                        }
-                        else
-                        {
-                            if (propIndex == _columnCacheChild.Count - 1)
-                            {
-                                _columnCacheChild.RemoveAt(propIndex);
-                                _columnCacheChildReverse.RemoveAt(propIndex);
-                            }
-                            else
-                            {
-                                var endOfListIndex = _columnCacheChild.Count - 1;
-                                var swapId = _columnCacheChildReverse[endOfListIndex];
-                                _columnCacheChildReverse[propIndex] = swapId;
-                                _columnCacheChildReverse.RemoveAt(endOfListIndex);
+                        InternalDeleteColumnCacheDoubleProp(2);
+                    }
+                }
+            }
 
-                                ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_columnCacheIndexes, swapId);
-                                swapIndex.SetIndex(3, false, propIndex);
-                                _columnCacheChild[propIndex] = _columnCacheChild[endOfListIndex];
-                                _columnCacheChild.RemoveAt(endOfListIndex);
-                            }
-                        }
+            if (viewInfo.Child != SetViewOperation.None)
+            {
+                var propIndex = index.GetIndex(3);
+                if (propIndex == -1)
+                {
+                    if (viewInfo.Child == SetViewOperation.Set)
+                    {
+                        index.SetIndex(3, true, _columnCacheChild.Count);
+                        _columnCacheChild.Add(viewInfo.GetChild());
+                        _columnCacheChildReverse.Add(key);
+                    }
+                }
+                else
+                {
+                    if (viewInfo.Child == SetViewOperation.Set)
+                    {
+                        _columnCacheChild[propIndex] = viewInfo.GetChild();
+                    }
+                    else
+                    {
+                        InternalDeleteColumnCacheChild(3);
                     }
                 }
             }

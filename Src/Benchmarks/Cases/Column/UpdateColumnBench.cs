@@ -35,7 +35,7 @@ public class UpdateColumnBench
             IntProp = SetViewOperation.Set,
             FuncIntProp = static (source) => source.IntProp,
             FuncDoubleProp = static (source) => source.DoubleProp.HasValue ? source.DoubleProp : null,
-            FuncChild = static (source) => source.Child ?? null
+            FuncChild = static (source) => source.Child ?? null!
         };
 
         for (int i = 0; i < Size; i++)
