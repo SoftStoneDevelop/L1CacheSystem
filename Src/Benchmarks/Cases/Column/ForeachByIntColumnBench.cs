@@ -13,7 +13,6 @@ namespace Benchmarks.Cases.Column;
 [ThreadingDiagnoser]
 [ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net11_0)]
-[SimpleJob(RuntimeMoniker.NativeAot11_0)]
 public class ForeachByIntColumnBench
 {
     private FakeMeterFactory? _meterFactory;
@@ -74,16 +73,22 @@ public class ForeachByIntColumnBench
     }
 
     [Benchmark(Description = "Entity", Baseline = true)]
-    public async Task GetEntity()
+    public async Task ForeachEntity()
     {
         var sum = 0;
         _cacheSystem!.ForeachBitsNone((value) => { sum += value.IntProp; });
     }
 
-    [Benchmark(Description = "Column")]
-    public async Task GetColumn()
+    [Benchmark(Description = "SpanIn")]
+    public async Task SpanIn()
     {
         var sum = 0;
-        _cacheSystem!.ForeachByColumnCacheIntProp((intProp) => { sum += intProp; });
+        _cacheSystem!.SpanInColumnCacheIntProp((span) =>
+        {
+            for (int i = 0; i < span.Length; i++)
+            {
+                sum += span[i];
+            }
+        });
     }
 }

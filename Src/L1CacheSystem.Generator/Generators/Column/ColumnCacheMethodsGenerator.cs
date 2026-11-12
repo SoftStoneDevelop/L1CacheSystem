@@ -33,8 +33,9 @@ namespace L1CacheSystem.Generator.Generators.Column
                 SetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
                 TryGetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
                 DeleteColumnMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
-                ForeachByColumnMethod(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
-                ForeachByColumnWithKeyMethod(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
+
+                SpanInColumnMethod(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
+                SpanInColumnWithKeyMethod(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
             }
 
             EndClass(builder);
@@ -52,8 +53,9 @@ namespace L1CacheSystem.Generator.Generators.Column
                 yield return SetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return TryGetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return DeleteColumnMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
-                yield return ForeachByColumnKeyMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
-                yield return ForeachByColumnWithKeyMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
+
+                yield return SpanInColumnMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
+                yield return SpanInColumnWithKeyMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
             }
         }
 
@@ -574,25 +576,22 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
-        private string ForeachByColumnWithKeyMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private string SpanInColumnWithKeyMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
-            return $"void ForeachBy{keyInfo.CacheName}{columnInfo.ColumnName}(Action<{keyInfo.KeyType.GetFullTypeName()}, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}> valueAction)";
+            return $"void SpanIn{keyInfo.CacheName}{columnInfo.ColumnName}(Action<ReadOnlySpan<{keyInfo.KeyType.GetFullTypeName()}>, ReadOnlySpan<{columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}>> action)";
         }
 
-        private void ForeachByColumnWithKeyMethod(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private void SpanInColumnWithKeyMethod(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             builder.Append($@"
-    public {ForeachByColumnWithKeyMethodDeclaration(keyInfo, columnInfo)}
+    public {SpanInColumnWithKeyMethodDeclaration(keyInfo, columnInfo)}
     {{
         {VarSlimLockName(keyInfo)}.EnterReadLock();
         try
         {{
             var spanColumn = CollectionsMarshal.AsSpan({VarCollectionName(keyInfo, columnInfo)});
             var spanColumnReverse = CollectionsMarshal.AsSpan({VarCollectionReverseName(keyInfo, columnInfo)});
-            for (int i = 0; i < spanColumn.Length; i++)
-            {{
-                valueAction(spanColumnReverse[i], spanColumn[i]);
-            }}
+            action(spanColumnReverse, spanColumn);
         }}
         finally
         {{
@@ -602,24 +601,21 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
-        private string ForeachByColumnKeyMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private string SpanInColumnMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
-            return $"void ForeachBy{keyInfo.CacheName}{columnInfo.ColumnName}(Action<{columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}> valueAction)";
+            return $"void SpanIn{keyInfo.CacheName}{columnInfo.ColumnName}(Action<ReadOnlySpan<{columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}>> action)";
         }
 
-        private void ForeachByColumnMethod(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private void SpanInColumnMethod(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             builder.Append($@"
-    public {ForeachByColumnKeyMethodDeclaration(keyInfo, columnInfo)}
+    public {SpanInColumnMethodDeclaration(keyInfo, columnInfo)}
     {{
         {VarSlimLockName(keyInfo)}.EnterReadLock();
         try
         {{
             var spanColumn = CollectionsMarshal.AsSpan({VarCollectionName(keyInfo, columnInfo)});
-            for (int i = 0; i < spanColumn.Length; i++)
-            {{
-                valueAction(spanColumn[i]);
-            }}
+            action(spanColumn);
         }}
         finally
         {{
