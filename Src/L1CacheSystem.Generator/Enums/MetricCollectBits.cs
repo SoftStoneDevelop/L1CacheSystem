@@ -53,9 +53,19 @@ namespace L1CacheSystem.Generator.Enums
         SetCallsCount = 1 << 4,
 
         /// <summary>
+        /// Number of calls to the SetColumn method
+        /// </summary>
+        SetColumnCallsCount = SetCallsCount,
+
+        /// <summary>
         /// The time taken for the Set method call to execute
         /// </summary>
         SetCallTime = 1 << 5,
+
+        /// <summary>
+        /// The time taken for the Set Column method call to execute
+        /// </summary>
+        SetColumnCallTime = SetCallTime,
 
         /// <summary>
         /// Time taken to achieve a lock
@@ -66,6 +76,11 @@ namespace L1CacheSystem.Generator.Enums
         /// Number of elements in the cache
         /// </summary>
         ItemsCount = 1 << 7,
+
+        /// <summary>
+        /// Number of columns in the cache
+        /// </summary>
+        ColumnsCount = ItemsCount,
 
         /// <summary>
         /// Number of calls to the Delete method
@@ -95,6 +110,16 @@ namespace L1CacheSystem.Generator.Enums
         /// <summary>
         /// The time taken for the GetIntoView method call to execute
         /// </summary>
-        GetIntoViewCallTime = 1 << 13
+        GetIntoViewCallTime = 1 << 13,
+
+        /// <summary>
+        /// Number of calls to the DeleteColumn method
+        /// </summary>
+        DeleteColumnCallsCount = 1 << 14,
+
+        /// <summary>
+        /// The time taken for the DeleteColumn method call to execute
+        /// </summary>
+        DeleteColumnCallTime = 1 << 15,
     }
 }

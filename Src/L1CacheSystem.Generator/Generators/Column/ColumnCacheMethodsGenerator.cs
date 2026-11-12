@@ -150,7 +150,21 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {
             builder.Append($@"
     public {SetMethodDeclaration(keyInfo, columnInfo)}
-    {{
+    {{");
+
+            if (columnInfo.MetricCollectFlags.HasFlag( Enums.MetricCollectBits.SetColumnCallTime))
+            {
+                builder.Append(@"
+        var start = _timeProvider.GetTimestamp();");
+            }
+
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetColumnCallsCount))
+            {
+                builder.Append($@"
+        _metrics.SetColumnCallInc(""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+            }
+
+            builder.Append($@"
         {VarSlimLockName(keyInfo)}.EnterWriteLock();
         try
         {{");
@@ -178,7 +192,15 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             }}
             else
             {{
-                index.SetIndex({columnIndex}, true, {VarCollectionName(keyInfo, columnInfo)}.Count);
+                index.SetIndex({columnIndex}, true, {VarCollectionName(keyInfo, columnInfo)}.Count);");
+
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ColumnsCount))
+            {
+                builder.Append($@"
+            _metrics.IncColumnsCount(""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+            }
+
+            builder.Append($@"
                 {VarCollectionName(keyInfo, columnInfo)}.Add(value);
                 {VarCollectionReverseName(keyInfo, columnInfo)}.Add(key);
             }}
@@ -186,6 +208,14 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         finally
         {{
             {VarSlimLockName(keyInfo)}.ExitWriteLock();
+");
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetColumnCallTime))
+            {
+                builder.Append($@"
+            _metrics.SetColumnCallTime(_timeProvider.GetElapsedTime(start).TotalMicroseconds, ""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+            }
+
+            builder.Append($@"
         }}
     }}
 ");
@@ -204,7 +234,20 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {
             builder.Append($@"
     public {TryGetMethodDeclaration(keyInfo, columnInfo)}
-    {{
+    {{");
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.TryGetCallTime))
+            {
+                builder.Append(@"
+        var start = _timeProvider.GetTimestamp();");
+            }
+
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.TryGetCallsCount))
+            {
+                builder.Append($@"
+        _metrics.TryGetColumnCallInc(""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+            }
+
+            builder.Append($@"
         {VarSlimLockName(keyInfo)}.EnterReadLock();
         try
         {{
@@ -231,7 +274,15 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         }}
         finally
         {{
-            {VarSlimLockName(keyInfo)}.ExitReadLock();
+            {VarSlimLockName(keyInfo)}.ExitReadLock();");
+
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.TryGetCallTime))
+            {
+                builder.Append($@"
+            _metrics.TryGetColumnCallTime(_timeProvider.GetElapsedTime(start).TotalMicroseconds, ""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+            }
+
+            builder.Append($@"
         }}
     }}
 ");
@@ -418,7 +469,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                             var column{keyInfo.CacheName}{columnInfo.ColumnName}Index = index.GetIndex({i});
                             if (column{keyInfo.CacheName}{columnInfo.ColumnName}Index != -1)
                             {{
-                                InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(column{keyInfo.CacheName}{columnInfo.ColumnName}Index);
+                                InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(ref index, column{keyInfo.CacheName}{columnInfo.ColumnName}Index);
                             }}
 ");
             }
@@ -461,7 +512,20 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {
             builder.Append($@"
     public {DeleteMethodDeclaration(keyInfo, columnInfo)}
-    {{
+    {{");
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.DeleteColumnCallTime))
+            {
+                builder.Append(@"
+        var start = _timeProvider.GetTimestamp();");
+            }
+
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.DeleteColumnCallsCount))
+            {
+                builder.Append($@"
+        _metrics.DeleteColumnCallInc(""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+            }
+
+            builder.Append($@"
         {VarSlimLockName(keyInfo)}.EnterWriteLock();
         try
         {{
@@ -478,17 +542,34 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                     return;
                 }}
                 
-                InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(columnIndex);
+                InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(ref index,columnIndex);
             }}
         }}
         finally
         {{
-            {VarSlimLockName(keyInfo)}.ExitWriteLock();
-        }}
-    }}
+            {VarSlimLockName(keyInfo)}.ExitWriteLock();");
 
-    private void InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(int columnIndex)
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.DeleteColumnCallTime))
+            {
+                builder.Append($@"
+            _metrics.DeleteColumnCallTime(_timeProvider.GetElapsedTime(start).TotalMicroseconds, ""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+            }
+
+            builder.Append($@"
+        }}
+    }}");
+            builder.Append($@"
+
+    private void InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(ref SparseIndex index, int columnIndex)
     {{
+        index.SetIndex({columnIndex}, false, columnIndex);");
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ColumnsCount))
+            {
+                builder.Append($@"
+        _metrics.DecColumnsCount(""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+            }
+
+            builder.Append($@"
         if (columnIndex == {VarCollectionName(keyInfo, columnInfo)}.Count - 1)
         {{
             {VarCollectionName(keyInfo, columnInfo)}.RemoveAt(columnIndex);
@@ -497,12 +578,12 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         else
         {{
             var endOfListIndex = {VarCollectionName(keyInfo, columnInfo)}.Count - 1;
-            var swapId = _columnCacheChildReverse[endOfListIndex];
+            var swapId = {VarCollectionReverseName(keyInfo, columnInfo)}[endOfListIndex];
             {VarCollectionReverseName(keyInfo, columnInfo)}[columnIndex] = swapId;
             {VarCollectionReverseName(keyInfo, columnInfo)}.RemoveAt(endOfListIndex);
 
             ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, swapId);
-            swapIndex.SetIndex({columnIndex}, false, columnIndex);
+            swapIndex.UpdateIndex({columnIndex}, columnIndex);
             {VarCollectionName(keyInfo, columnInfo)}[columnIndex] = {VarCollectionName(keyInfo, columnInfo)}[endOfListIndex];
             {VarCollectionName(keyInfo, columnInfo)}.RemoveAt(endOfListIndex);
         }}
@@ -519,7 +600,20 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {
             builder.Append($@"
     public {SetFromViewMethodDeclaration(cacheInfo)}
-    {{
+    {{");
+            if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetFromViewCallTime))
+            {
+                builder.Append(@"
+        var start = _timeProvider.GetTimestamp();");
+            }
+
+            if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetFromViewCallsCount))
+            {
+                builder.Append($@"
+        _metrics.SetFromViewCallInc(""{cacheInfo.KeyInfo.CacheName}"");");
+            }
+
+            builder.Append($@"
         {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
         try
         {{");
@@ -563,7 +657,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                     }}
                     else
                     {{
-                        InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}({i});
+                        InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, {i});
                     }}
                 }}
             }}
@@ -574,7 +668,15 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         }}
         finally
         {{
-            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();");
+
+            if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetFromViewCallTime))
+            {
+                builder.Append($@"
+            _metrics.SetFromViewCallTime(_timeProvider.GetElapsedTime(start).TotalMicroseconds, ""{cacheInfo.KeyInfo.CacheName}"");");
+            }
+
+            builder.Append($@"
         }}
     }}
 ");

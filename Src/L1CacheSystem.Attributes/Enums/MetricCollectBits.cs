@@ -56,9 +56,19 @@ public enum MetricCollectBits : int
     SetCallsCount = 1 << 4,
 
     /// <summary>
+    /// Number of calls to the SetColumn method
+    /// </summary>
+    SetColumnCallsCount = SetCallsCount,
+
+    /// <summary>
     /// The time taken for the Set method call to execute
     /// </summary>
     SetCallTime = 1 << 5,
+
+    /// <summary>
+    /// The time taken for the Set Column method call to execute
+    /// </summary>
+    SetColumnCallTime = SetCallTime,
 
     /// <summary>
     /// Time taken to achieve a lock
@@ -69,6 +79,11 @@ public enum MetricCollectBits : int
     /// Number of elements in the cache
     /// </summary>
     ItemsCount = 1 << 7,
+
+    /// <summary>
+    /// Number of columns in the cache
+    /// </summary>
+    ColumnsCount = ItemsCount,
 
     /// <summary>
     /// Number of calls to the Delete method
@@ -101,19 +116,29 @@ public enum MetricCollectBits : int
     GetIntoViewCallTime = 1 << 13,
 
     /// <summary>
+    /// Number of calls to the DeleteColumn method
+    /// </summary>
+    DeleteColumnCallsCount = 1 << 14,
+
+    /// <summary>
+    /// The time taken for the DeleteColumn method call to execute
+    /// </summary>
+    DeleteColumnCallTime = 1 << 15,
+
+    /// <summary>
     /// A minimal set of metrics
     /// </summary>
-    DefaultCollectBits = ItemsCount,
+    DefaultCollectBits = ItemsCount | ColumnsCount,
 
     /// <summary>
     /// All counter metrics
     /// </summary>
-    AllCount = ItemsCount | SetCallsCount | GetCallsCount | GetAllCallsCount | DeleteCallsCount | TryGetCallsCount | ForeachColumnCallsCount | SetFromViewCallsCount | GetIntoViewCallsCount,
+    AllCount = ItemsCount | ColumnsCount | SetCallsCount | SetColumnCallsCount | GetCallsCount | GetAllCallsCount | DeleteCallsCount | TryGetCallsCount | ForeachColumnCallsCount | SetFromViewCallsCount | GetIntoViewCallsCount | DeleteColumnCallsCount,
 
     /// <summary>
     /// All time-related metrics
     /// </summary>
-    AllTimes = GetLockTime | SetCallTime | GetCallTime | GetAllCallTime | DeleteCallTime | TryGetCallTime | ForeachColumnCallTime | SetFromViewCallTime | GetIntoViewCallTime,
+    AllTimes = GetLockTime | SetCallTime |SetColumnCallTime | GetCallTime | GetAllCallTime | DeleteCallTime | TryGetCallTime | ForeachColumnCallTime | SetFromViewCallTime | GetIntoViewCallTime | DeleteColumnCallTime,
 
     AllBits = ~0
 }
