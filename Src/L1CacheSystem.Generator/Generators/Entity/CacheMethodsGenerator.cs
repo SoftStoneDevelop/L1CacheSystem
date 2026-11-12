@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace L1CacheSystem.Generator.Generators
+namespace L1CacheSystem.Generator.Generators.Entity
 {
     internal class CacheMethodsGenerator
     {
@@ -15,7 +15,6 @@ namespace L1CacheSystem.Generator.Generators
             SourceProductionContext context,
             CacheInfo cacheInfo,
             StringBuilder builder,
-            string usings,
             string partName)
         {
             Usings(builder, cacheInfo);
@@ -24,7 +23,6 @@ namespace L1CacheSystem.Generator.Generators
 
             PrivateVars(builder, cacheInfo);
 
-            LockMethods(builder, cacheInfo);
             SetMethod(builder, cacheInfo);
             DeleteMethod(builder, cacheInfo);
             GetMethod(builder, cacheInfo);
@@ -40,19 +38,8 @@ namespace L1CacheSystem.Generator.Generators
             return $"_{cacheInfo.CacheName.ToCamelCase()}Collection";
         }
 
-        public string GetLockKeyMethodName(CacheInfo cacheInfo)
-        {
-            return $"Get{cacheInfo.CacheName}LockKey";
-        }
-
-        public string GetLockMethodName(CacheInfo cacheInfo)
-        {
-            return $"Get{cacheInfo.CacheName}LockAsync";
-        }
-
         public IEnumerable<string> GetPublicMethodDeclarations(CacheInfo cacheInfo)
         {
-            yield return GetLockMethodDeclaration(cacheInfo);
             yield return SetMethodDeclaration(cacheInfo);
             yield return GetMethodDeclaration(cacheInfo);
             yield return GetAllMethodDeclaration(cacheInfo);
@@ -93,37 +80,7 @@ public partial class {cacheInfo.ContainsType.Name}
         private void PrivateVars(StringBuilder builder, CacheInfo cacheInfo)
         {
             builder.Append($@"
-    private const string {GetLockPrefixName(cacheInfo)} = ""{cacheInfo.CacheName.ToLowerInvariant()}"";
     private readonly ConcurrentDictionary<{cacheInfo.KeyType.GetFullTypeName()}, CacheValue<{cacheInfo.CacheType.GetFullTypeName()}>> {CollectionName(cacheInfo)} = new();
-");
-        }
-
-        private string GetLockPrefixName(CacheInfo cacheInfo)
-        {
-            return $"_prefix{cacheInfo.CacheName.ToCamelCase()}";
-        }
-
-        private string GetLockMethodDeclaration(CacheInfo cacheInfo)
-        {
-            return $"Task {GetLockMethodName(cacheInfo)}({cacheInfo.KeyType.GetFullTypeName()}" +
-                $" {cacheInfo.CacheName.ToCamelCase()}Key," +
-                $" ILockGuard lockGuard," +
-                $" CancellationToken cancellationToken = default)";
-        }
-
-        private void LockMethods(StringBuilder builder, CacheInfo cacheInfo)
-        {
-            string collectMetricsStr = cacheInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.GetLockTime) ? "true" : "false";
-            builder.Append($@"
-    private static string {GetLockKeyMethodName(cacheInfo)}({cacheInfo.KeyType.GetFullTypeName()} {cacheInfo.CacheName.ToCamelCase()}LockKey)
-    {{
-        return $""lock:{{{GetLockPrefixName(cacheInfo)}}}:{{{cacheInfo.CacheName.ToCamelCase()}LockKey}}"";
-    }}
-
-    public async {GetLockMethodDeclaration(cacheInfo)}
-    {{
-        await GetLockAsync({GetLockKeyMethodName(cacheInfo)}({cacheInfo.CacheName.ToCamelCase()}Key), ""{cacheInfo.CacheName}"", lockGuard, {collectMetricsStr}, cancellationToken);
-    }}
 ");
         }
 

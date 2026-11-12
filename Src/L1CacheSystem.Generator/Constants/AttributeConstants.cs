@@ -5,5 +5,9 @@
         internal const string AttributeNamespace = "L1CacheSystem.Attributes";
 
         internal const string EntityCacheTypeAttributeName = "EntityCacheTypeAttribute";
+
+        internal const string ColumnCacheAttributeName = "ColumnCacheAttribute";
+
+        internal const string KeyColumnCacheAttributeName = "KeyColumnCacheAttribute";
     }
 }

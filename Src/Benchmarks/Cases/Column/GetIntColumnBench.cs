@@ -86,7 +86,7 @@ public class GetIntColumnBench
     {
         for (long i = 0; i < Size; i++)
         {
-            _ = _cacheSystem!.TryGetCustomIntProp(i, out var intProp);
+            _ = _cacheSystem!.TryGetColumnCacheIntProp(i, out var intProp);
         }
     }
 }

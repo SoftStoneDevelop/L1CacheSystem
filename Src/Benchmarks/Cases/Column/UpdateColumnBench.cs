@@ -88,7 +88,7 @@ public class UpdateColumnBench
     {
         for (long i = 0; i < Size; i++)
         {
-            _cacheSystem!.SetCustomIntProp(i, 454);
+            _cacheSystem!.SetColumnCacheIntProp(i, 454);
         }
     }
 }
