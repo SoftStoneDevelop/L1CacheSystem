@@ -22,6 +22,8 @@ namespace L1CacheSystem.Generator.Generators.Column
             PrivateVars(builder, cacheInfo);
 
             SetViewStruct(builder, cacheInfo);
+            SetFromView(builder, cacheInfo);
+
             RemoveExpired(builder, cacheInfo);
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {
@@ -39,6 +41,8 @@ namespace L1CacheSystem.Generator.Generators.Column
 
         public IEnumerable<string> GetPublicMethodDeclarations(ColumnCacheInfo cacheInfo)
         {
+            yield return SetFromViewMethodDeclaration(cacheInfo);
+
             foreach (var columnInfo in cacheInfo.ColumnInfos)
             {
                 yield return SetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
@@ -149,8 +153,24 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     {{
         {VarSlimLockName(keyInfo)}.EnterWriteLock();
         try
-        {{
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(keyInfo)}, key, out _);
+        {{");
+
+            if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
+            {
+                builder.Append($@"
+            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(keyInfo)}, key, out var created);
+            if (created)
+            {{
+                _metrics.IncItemsCount(""{keyInfo.CacheName}"");
+            }}");
+            }
+            else
+            {
+                builder.Append($@"
+            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(keyInfo)}, key, out _);");
+            }
+
+            builder.Append($@"
             var indexProp = index.GetIndex({columnIndex});
             if (indexProp != -1)
             {{
@@ -191,7 +211,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, key);
             if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
             {{
-                value = default;
+                value = default!;
                 return false;
             }}
             else
@@ -199,7 +219,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                 var listIndex = index.GetIndex({columnIndex});
                 if (listIndex == -1)
                 {{
-                    value = default;
+                    value = default!;
                     return false;
                 }}
                 else
@@ -217,10 +237,20 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        private static string SetViewStructFullTypeName(ColumnCacheInfo cacheInfo)
+        {
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{SetViewStructName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
+        private static string SetViewStructName(string cacheName)
+        {
+            return $"SetView{cacheName}";
+        }
+
         private void SetViewStruct(StringBuilder builder, ColumnCacheInfo cacheInfo)
         {
             builder.Append($@"
-    public ref struct SetView{cacheInfo.KeyInfo.CacheName}<T>
+    public ref struct {SetViewStructName(cacheInfo.KeyInfo.CacheName)}<T>
     {{
         public T Source {{ get; set; }}");
 
@@ -381,10 +411,16 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                                 continue;
                             }}");
 
-            foreach (var columnInfo in cacheInfo.ColumnInfos)
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
                 builder.Append($@"
-                            // TODO {columnInfo.ColumnName}");
+                            var column{keyInfo.CacheName}{columnInfo.ColumnName}Index = index.GetIndex({i});
+                            if (column{keyInfo.CacheName}{columnInfo.ColumnName}Index != -1)
+                            {{
+                                InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(column{keyInfo.CacheName}{columnInfo.ColumnName}Index);
+                            }}
+");
             }
 
             builder.Append($@"
@@ -469,6 +505,76 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             swapIndex.SetIndex({columnIndex}, false, columnIndex);
             {VarCollectionName(keyInfo, columnInfo)}[columnIndex] = {VarCollectionName(keyInfo, columnInfo)}[endOfListIndex];
             {VarCollectionName(keyInfo, columnInfo)}.RemoveAt(endOfListIndex);
+        }}
+    }}
+");
+        }
+
+        private string SetFromViewMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo)";
+        }
+
+        private void SetFromView(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {SetFromViewMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{");
+
+            if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
+            {
+                builder.Append($@"
+            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(cacheInfo.KeyInfo)}, key, out var created);
+            if (created)
+            {{
+                _metrics.IncItemsCount(""{cacheInfo.KeyInfo.CacheName}"");
+            }}");
+            }
+            else
+            {
+                builder.Append($@"
+            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrAddDefault({VarIndexName(cacheInfo.KeyInfo)}, key, out _);");
+            }
+
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+            if (viewInfo.{columnInfo.ColumnName} != SetViewOperation.None)
+            {{
+                var columnIndex = index.GetIndex({i});
+                if (columnIndex == -1)
+                {{
+                    if (viewInfo.{columnInfo.ColumnName} == SetViewOperation.Set)
+                    {{
+                        index.SetIndex({i}, true, {VarCollectionName(cacheInfo.KeyInfo, columnInfo)}.Count);
+                        {VarCollectionName(cacheInfo.KeyInfo, columnInfo)}.Add(viewInfo.Get{columnInfo.ColumnName}()!);
+                        {VarCollectionReverseName(cacheInfo.KeyInfo, columnInfo)}.Add(key);
+                    }}
+                }}
+                else
+                {{
+                    if (viewInfo.{columnInfo.ColumnName} == SetViewOperation.Set)
+                    {{
+                        {VarCollectionName(cacheInfo.KeyInfo, columnInfo)}[columnIndex] = viewInfo.Get{columnInfo.ColumnName}()!;
+                    }}
+                    else
+                    {{
+                        InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}({i});
+                    }}
+                }}
+            }}
+");
+            }
+
+            builder.Append($@"
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
         }}
     }}
 ");

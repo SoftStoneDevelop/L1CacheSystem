@@ -99,7 +99,7 @@ public class SetViewBench
             view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
             view.Child = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
 
-            _cacheSystem!.SetCustomFromView(value.Id, view);
+            _cacheSystem!.SetColumnCacheFromView(value.Id, view);
         }
     }
 }

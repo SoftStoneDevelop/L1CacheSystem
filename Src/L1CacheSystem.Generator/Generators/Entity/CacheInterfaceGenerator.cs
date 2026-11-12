@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using System;
 using System.Text;
 
 namespace L1CacheSystem.Generator.Generators.Entity
