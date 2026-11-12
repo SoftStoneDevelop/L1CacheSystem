@@ -70,6 +70,7 @@ using System.Threading.Tasks;
 using L1CacheSystem;
 using System.Runtime.InteropServices;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 #nullable enable
 ");
@@ -303,6 +304,118 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
         private void SparseIndexStruct(StringBuilder builder, ColumnCacheInfo cacheInfo)
         {
+            var columns = cacheInfo.ColumnInfos.Count;
+            if (columns <= 32)
+            {
+                SparseIndexOnInlineArray(builder, cacheInfo);
+            }
+            else
+            {
+                SparseIndexOnList(builder, cacheInfo);
+            }
+        }
+
+        private void SparseIndexOnInlineArray(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public struct {SparseIndexStructTypeName(cacheInfo.KeyInfo.CacheName)}
+    {{
+        [InlineArray({cacheInfo.ColumnInfos.Count})]
+        public struct Indexes
+        {{
+            private int _element0;
+        }}
+
+        public {SparseIndexStructTypeName(cacheInfo.KeyInfo.CacheName)}()
+        {{
+            _propsMask = 0;
+            Expire = null;
+        }}
+
+        private ulong _propsMask; // In an inlined array, this can be done without a mask, but I’ve left it in for now.
+        private Indexes _indexes;
+
+        /// <summary>
+        /// The date after which the values will be removed from the cache
+        /// </summary>
+        public DateTimeOffset? Expire {{ get; set; }}
+
+        /// <summary>
+        /// Get index of property
+        /// </summary>
+        /// <returns>-1 if property not exist</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly int GetIndex(byte propIndex)
+        {{
+            var indexInList = GetInnerIndex(propIndex);
+            return indexInList == -1 ? -1 : _indexes[indexInList];
+        }}
+
+        /// <summary>
+        /// Get index of property
+        /// </summary>
+        /// <returns>-1 if property not exist</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private readonly short GetInnerIndex(byte propIndex)
+        {{
+            if (HaveProp(propIndex))
+            {{
+                return propIndex;
+            }}
+            else
+            {{
+                return -1;
+            }}
+        }}
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly bool HaveProp(byte propIndex)
+        {{
+            var bitMask = (1UL << propIndex);
+            return (_propsMask & bitMask) != 0;
+        }}
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly int HavePropCount()
+        {{
+            return BitOperations.PopCount(_propsMask);
+        }}
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetIndex(byte propIndex, bool haveProp, int index)
+        {{
+            var bitMask = (1UL << propIndex);
+            if (((_propsMask & bitMask) != 0) == haveProp)
+            {{
+                return;
+            }}
+
+            if (!haveProp)
+            {{
+                _propsMask ^= bitMask;
+            }}
+            else
+            {{
+                _propsMask ^= bitMask;
+                _indexes[propIndex] = index;
+            }}
+        }}
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void UpdateIndex(byte propIndex, int newIndex)
+        {{
+            var indexInList = GetInnerIndex(propIndex);
+            if (indexInList != -1)
+            {{
+                _indexes[indexInList] = newIndex;
+            }}
+        }}
+    }}
+");
+        }
+
+        private void SparseIndexOnList(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
             builder.Append($@"
     public struct {SparseIndexStructTypeName(cacheInfo.KeyInfo.CacheName)}
     {{
@@ -324,6 +437,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         /// Get index of property
         /// </summary>
         /// <returns>-1 if property not exist</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly int GetIndex(byte propIndex)
         {{
             var indexInList = GetInnerIndex(propIndex);
@@ -334,6 +448,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         /// Get index of property
         /// </summary>
         /// <returns>-1 if property not exist</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private readonly short GetInnerIndex(byte propIndex)
         {{
             if (HaveProp(propIndex))
@@ -357,17 +472,20 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             }}
         }}
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly bool HaveProp(byte propIndex)
         {{
             var bitMask = (1UL << propIndex);
             return (_propsMask & bitMask) != 0;
         }}
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly int HavePropCount()
         {{
             return BitOperations.PopCount(_propsMask);
         }}
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetIndex(byte propIndex, bool haveProp, int index)
         {{
             var bitMask = (1UL << propIndex);
@@ -398,10 +516,18 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                 _propsMask ^= bitMask;
                 var beforeBits = _propsMask & (bitMask - 1);
                 var indexInList = BitOperations.PopCount(beforeBits);
+                if (_indexes.Count == _indexes.Capacity)
+                {{
+                    // We assume that the variation in the presence of a column refers to the difference between entities much more often than for a single entity.
+                    // Therefore, we carefully increase it, but if it has increased, we do not decrease it.
+                    _indexes.Capacity = _indexes.Capacity + 1;
+                }}
+
                 _indexes.Insert(indexInList, index);
             }}
         }}
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateIndex(byte propIndex, int newIndex)
         {{
             var indexInList = GetInnerIndex(propIndex);

@@ -78,8 +78,8 @@ public class SetViewBench
         }
     }
 
-    [Benchmark(Description = "Set ViewT")]
-    public async Task SetTRefColumn()
+    [Benchmark(Description = "Set View")]
+    public async Task SetViewColumn()
     {
         var view = new CacheSystem.SetViewColumnCache<ValueClass>
         {

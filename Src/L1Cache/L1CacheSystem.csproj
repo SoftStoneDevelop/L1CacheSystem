@@ -26,8 +26,11 @@
 			<PackagePath>\</PackagePath>
 		</None>
 	</ItemGroup>
-	<ItemGroup>
+	<ItemGroup Label="not net1.0 specific" Condition="'$(TargetFramework)' != 'net1.0'">
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
+	</ItemGroup>
+	<ItemGroup Label="net11.0 specific" Condition="'$(TargetFramework)' == 'net11.0'">
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
 	</ItemGroup>
 	<ItemGroup>
 		<InternalsVisibleTo Include="L1CacheSystem.Tests" />

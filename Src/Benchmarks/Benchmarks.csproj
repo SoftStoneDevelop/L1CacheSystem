@@ -11,8 +11,8 @@
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
-		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.14" />
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.14" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="11.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="11.0.0" />
     </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\L1CacheSystem.Attributes\L1CacheSystem.Attributes.csproj" />
