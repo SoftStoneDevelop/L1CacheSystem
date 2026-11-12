@@ -142,7 +142,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
         private string SetMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
-            return $"void Set{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} value)";
+            return $"void Set{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} value, TimeSpan? expiry = null)";
         }
 
         private void SetMethod(
@@ -180,7 +180,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             {{
                 index = new();
                 _metrics.IncItemsCount(""{keyInfo.CacheName}"");
-            }}");
+            }}
+            index.Expire =_timeProvider.GetUtcNow() + expiry;");
             }
             else
             {
@@ -597,7 +598,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
         private string SetFromViewMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
-            return $"void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo)";
+            return $"void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)";
         }
 
         private void SetFromViewMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
@@ -630,7 +631,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             {{
                 index = new();
                 _metrics.IncItemsCount(""{cacheInfo.KeyInfo.CacheName}"");
-            }}");
+            }}
+            index.Expire =_timeProvider.GetUtcNow() + expiry;");
             }
             else
             {

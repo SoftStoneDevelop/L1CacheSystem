@@ -226,4 +226,64 @@ internal class ColumnCacheTypeTests
         haveValue = cache.TryGetOneInnerClass(original.Id, out _);
         Assert.That(haveValue, Is.False);
     }
+
+    [Test]
+    public void TestClearExpiredCache()
+    {
+        var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var factory = new FakeMeterFactory();
+        var cache = new TestCacheSystemColumn(NullLogger.Instance, timeProvider, factory);
+
+        var original = new TestClass()
+        {
+            Id = 12,
+            IntProp = 19,
+            InnerClass = new InnerTestClass()
+            {
+                IntProp = 44
+            }
+        };
+
+        var view = new TestCacheSystemColumn.SetViewOne<TestClass>()
+        {
+            Id = Enums.SetViewOperation.Set,
+            FuncId = static (source) => source.Id,
+            IntProp = Enums.SetViewOperation.Set,
+            FuncIntProp = static (source) => source.IntProp,
+            InnerClass = Enums.SetViewOperation.Set,
+            FuncInnerClass = static (source) => source.InnerClass!
+        };
+        view.Source = original;
+
+        cache.SetOneFromView(original.Id, view, TimeSpan.FromSeconds(10));
+        cache.ClearExpiredCache();
+
+        var have = cache.TryGetOneId(original.Id, out _);
+        Assert.That(have, Is.True);
+
+        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(1); // 9 remind
+        cache.ClearExpiredCache();
+        have = cache.TryGetOneId(original.Id, out _);
+        Assert.That(have, Is.True);
+
+        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(5); // 4 remind
+        cache.ClearExpiredCache();
+        have = cache.TryGetOneId(original.Id, out _);
+        Assert.That(have, Is.True);
+
+        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(3); // 1 remind
+        cache.ClearExpiredCache();
+        have = cache.TryGetOneId(original.Id, out _);
+        Assert.That(have, Is.True);
+
+        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(1); // 0 remind but we live
+        cache.ClearExpiredCache();
+        have = cache.TryGetOneId(original.Id, out _);
+        Assert.That(have, Is.True);
+
+        timeProvider.FakeTime = timeProvider.FakeTime.AddMicroseconds(1); // expired
+        cache.ClearExpiredCache();
+        have = cache.TryGetOneId(original.Id, out _);
+        Assert.That(have, Is.False);
+    }
 }
