@@ -22,16 +22,18 @@ namespace L1CacheSystem.Generator.Generators.Column
             PrivateVars(builder, cacheInfo);
 
             SetViewStruct(builder, cacheInfo);
-            SetFromView(builder, cacheInfo);
+            SetFromViewMethod(builder, cacheInfo);
+
+            DeleteMethod(builder, cacheInfo);
 
             RemoveExpired(builder, cacheInfo);
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {
                 SetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
                 TryGetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
-                DeleteMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
-                ForeachByColumn(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
-                ForeachByColumnWithKey(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
+                DeleteColumnMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
+                ForeachByColumnMethod(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
+                ForeachByColumnWithKeyMethod(builder, cacheInfo.KeyInfo, cacheInfo.ColumnInfos[i]);
             }
 
             EndClass(builder);
@@ -42,12 +44,13 @@ namespace L1CacheSystem.Generator.Generators.Column
         public IEnumerable<string> GetPublicMethodDeclarations(ColumnCacheInfo cacheInfo)
         {
             yield return SetFromViewMethodDeclaration(cacheInfo);
+            yield return DeleteMethodDeclaration(cacheInfo);
 
             foreach (var columnInfo in cacheInfo.ColumnInfos)
             {
                 yield return SetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return TryGetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
-                yield return DeleteMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
+                yield return DeleteColumnMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return ForeachByColumnKeyMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return ForeachByColumnWithKeyMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
             }
@@ -324,7 +327,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             return $"void ForeachBy{keyInfo.CacheName}{columnInfo.ColumnName}(Action<{keyInfo.KeyType.GetFullTypeName()}, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}> valueAction)";
         }
 
-        private void ForeachByColumnWithKey(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private void ForeachByColumnWithKeyMethod(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             builder.Append($@"
     public {ForeachByColumnWithKeyMethodDeclaration(keyInfo, columnInfo)}
@@ -352,7 +355,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             return $"void ForeachBy{keyInfo.CacheName}{columnInfo.ColumnName}(Action<{columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}> valueAction)";
         }
 
-        private void ForeachByColumn(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private void ForeachByColumnMethod(StringBuilder builder, KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             builder.Append($@"
     public {ForeachByColumnKeyMethodDeclaration(keyInfo, columnInfo)}
@@ -499,19 +502,19 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
         }
 
-        private string DeleteMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        private string DeleteColumnMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             return $"void Delete{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key)";
         }
 
-        private void DeleteMethod(
+        private void DeleteColumnMethod(
             StringBuilder builder,
             KeyColumnInfo keyInfo,
             int columnIndex,
             ColumnInfo columnInfo)
         {
             builder.Append($@"
-    public {DeleteMethodDeclaration(keyInfo, columnInfo)}
+    public {DeleteColumnMethodDeclaration(keyInfo, columnInfo)}
     {{");
             if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.DeleteColumnCallTime))
             {
@@ -596,7 +599,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             return $"void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo)";
         }
 
-        private void SetFromView(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        private void SetFromViewMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
         {
             builder.Append($@"
     public {SetFromViewMethodDeclaration(cacheInfo)}
@@ -677,6 +680,46 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             }
 
             builder.Append($@"
+        }}
+    }}
+");
+        }
+
+        private string DeleteMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void Delete{cacheInfo.KeyInfo.CacheName}({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key)";
+        }
+
+        private void DeleteMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {DeleteMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            if (!{VarIndexName(cacheInfo.KeyInfo)}.Remove(key, out var index))
+            {{
+                return;
+            }}");
+
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+            var column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index = index.GetIndex({i});
+            if (column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index != -1)
+            {{
+                InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index);
+            }}
+");
+            }
+
+            builder.Append($@"
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
         }}
     }}
 ");

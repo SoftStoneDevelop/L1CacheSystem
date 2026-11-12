@@ -1,11 +1,9 @@
 ﻿using Benchmarks.Model;
 using L1CacheSystem.Attributes;
 using L1CacheSystem.Attributes.Enums;
-using L1CacheSystem.Enums;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics.Metrics;
-using System.Runtime.InteropServices;
 
 namespace Benchmarks.Backend;
 
