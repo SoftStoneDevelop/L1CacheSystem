@@ -221,7 +221,7 @@ public class MyValueService
   {
     var haveValue = _cacheSystem.TryGetYouColumnCacheNameValue(id, out var value);
     // haveValue
-    // There may be no speakers at all, since speakers are just a promise that they might exist, not a requirement. Each entity may or may not have them.
+    // There may be no columns at all, since columns are just a promise that they might exist, not a requirement. Each entity may or may not have them.
 
     return value; // We have a simple example, so we’re definitely sure that it’s there.
   }
@@ -229,11 +229,14 @@ public class MyValueService
   public double SumValue()
   {
     double sum;
-    _cacheSystem.ForeachByYouColumnCacheNameValue((value) => sum += value;);
-    // _cacheSystem.ForeachByYouColumnCacheNameId and etc
-
-    // In general, the idea is that the column is stored in a continuous array,
-    // and therefore iterating through it is faster than iterating through random fragments in Entity mode.
+    _cacheSystem.ViewInContextYouColumnCacheName((context) =>
+	{
+		var span = context.GetValueSpan();
+		for (int i = 0; i < span.Length; i++)
+		{
+			sum += span[i];
+		}
+	});
 
     return sum;
   }
