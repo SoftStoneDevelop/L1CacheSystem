@@ -3,7 +3,10 @@ using L1CacheSystem.Attributes;
 using L1CacheSystem.Attributes.Enums;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.Metrics;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Benchmarks.Backend;
 
@@ -47,6 +50,22 @@ namespace Benchmarks.Backend;
         metricCollectFlags: MetricCollectBits.AllBits,
         copyMethodName: nameof(ValueClass.MakeCopy),
         copyMethodType: CopyMethodType.CopyMethodOnType)]
+[KeyColumnCache(
+    keyType: typeof(long),
+    interfaceType: typeof(ICacheSystem),
+    cacheName: "ColumnCache"),
+    ColumnCache(
+    columnType: typeof(long),
+    columnName: nameof(ValueClass.Id)),
+    ColumnCache(
+    columnType: typeof(int),
+    columnName: nameof(ValueClass.IntProp)),
+    ColumnCache(
+    columnType: typeof(double?),
+    columnName: nameof(ValueClass.DoubleProp)),
+    ColumnCache(
+    columnType: typeof(ValueClass),
+    columnName: nameof(ValueClass.Child))]
 public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICacheSystem
 {
     public CacheSystem(
@@ -55,5 +74,13 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
         IMeterFactory meterFactory)
         : base(logger, timeProvider, meterFactory)
     {
+    }
+
+    public void ForeachBitsNone(Action<Benchmarks.Model.ValueClass> action)
+    {
+        foreach (var value in _bitsNoneCollection.Values)
+        {
+            action(value.Value);
+        }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using L1CacheSystem.Enums;
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
@@ -14,6 +13,7 @@ public sealed class L1CacheSystemMetrics
     private const string _cacheType = "cache_type";
     private const string _returnType = "return_type";
     private const string _valueOwnership = "value_ownership";
+    private const string _columnName = "column_name";
 
     private readonly Meter _meter;
     private readonly string _serviceTypeName;
@@ -21,6 +21,7 @@ public sealed class L1CacheSystemMetrics
     private readonly KeyValuePair<string, object?> _instanceLabelTag;
 
     private readonly UpDownCounter<long> _itemsCount;
+    private readonly UpDownCounter<long> _columnsCount;
     private readonly Histogram<double> _getLockTimeHistogram;
 
     private readonly Counter<long> _setCallsCount;
@@ -35,6 +36,18 @@ public sealed class L1CacheSystemMetrics
     private readonly Counter<long> _getAllCallsCount;
     private readonly Histogram<double> _getAllCallTime;
 
+    private readonly Counter<long> _setColumnCallsCount;
+    private readonly Histogram<double> _setColumnCallTime;
+
+    private readonly Counter<long> _tryGetColumnCallsCount;
+    private readonly Histogram<double> _tryGetColumnCallTime;
+
+    private readonly Counter<long> _deleteColumnCallsCount;
+    private readonly Histogram<double> _deleteColumnCallTime;
+
+    private readonly Counter<long> _setFromViewCallsCount;
+    private readonly Histogram<double> _setFromViewCallTime;
+
     public L1CacheSystemMetrics(IMeterFactory meterFactory, string serviceTypeName)
     {
         _serviceTypeName = serviceTypeName;
@@ -44,6 +57,10 @@ public sealed class L1CacheSystemMetrics
         _itemsCount = _meter.CreateUpDownCounter<long>(
             "item_count",
             description: "Total count in cache");
+
+        _columnsCount = _meter.CreateUpDownCounter<long>(
+            "columns_count",
+            description: "Total count of columns in cache");
 
         _getLockTimeHistogram = _meter.CreateHistogram<double>(
             "get_lock_time",
@@ -73,6 +90,30 @@ public sealed class L1CacheSystemMetrics
             "get_all_call_time",
             unit: "us",
             description: "The time taken by the method");
+
+        _setColumnCallsCount = _meter.CreateCounter<long>("set_column_calls_count");
+        _setColumnCallTime = _meter.CreateHistogram<double>(
+            "set_column_call_time",
+            unit: "us",
+            description: "The time taken by the method");
+
+        _tryGetColumnCallsCount = _meter.CreateCounter<long>("try_get_column_calls_count");
+        _tryGetColumnCallTime = _meter.CreateHistogram<double>(
+            "try_get_column_call_time",
+            unit: "us",
+            description: "The time taken by the method");
+
+        _deleteColumnCallsCount = _meter.CreateCounter<long>("delete_column_calls_count");
+        _deleteColumnCallTime = _meter.CreateHistogram<double>(
+            "delete_column_call_time",
+            unit: "us",
+            description: "The time taken by the method");
+
+        _setFromViewCallsCount = _meter.CreateCounter<long>("set_from_view_calls_count");
+        _setFromViewCallTime = _meter.CreateHistogram<double>(
+            "set_from_view_call_time",
+            unit: "us",
+            description: "The time taken by the method");
     }
 
     /// <summary>
@@ -91,7 +132,7 @@ public sealed class L1CacheSystemMetrics
     }
 
     /// <summary>
-    /// Increment the element counter in the cache
+    /// Increment the item counter in the cache
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void IncItemsCount(string cacheTypeName)
@@ -100,6 +141,36 @@ public sealed class L1CacheSystemMetrics
         tags.Add(_instanceLabelTag);
         tags.Add(_cacheType, cacheTypeName);
         _itemsCount.Add(
+            1,
+            tags);
+    }
+
+    /// <summary>
+    /// Decrease the column counter in the cache
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DecColumnsCount(string cacheTypeName, string columnName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabel, _serviceTypeName);
+        tags.Add(_cacheType, cacheTypeName);
+        tags.Add(_columnName, columnName);
+        _columnsCount.Add(
+            -1,
+            tags);
+    }
+
+    /// <summary>
+    /// Increment the column counter in the cache
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void IncColumnsCount(string cacheTypeName, string columnName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        tags.Add(_columnName, columnName);
+        _columnsCount.Add(
             1,
             tags);
     }
@@ -208,6 +279,100 @@ public sealed class L1CacheSystemMetrics
         tags.Add(_cacheType, cacheTypeName);
         tags.Add(_returnType, ToStringLiteral(returnType));
         _getAllCallTime.Record(
+            microseconds,
+            tags);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetColumnCallInc(string cacheTypeName, string columnName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        tags.Add(_columnName, columnName);
+        _setColumnCallsCount.Add(
+            1,
+            tags);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetColumnCallTime(double microseconds, string cacheTypeName, string columnName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        tags.Add(_columnName, columnName);
+        _setColumnCallTime.Record(
+            microseconds,
+            tags);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void TryGetColumnCallInc(string cacheTypeName, string columnName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        tags.Add(_columnName, columnName);
+        _tryGetColumnCallsCount.Add(
+            1,
+            tags);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void TryGetColumnCallTime(double microseconds, string cacheTypeName, string columnName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        tags.Add(_columnName, columnName);
+        _tryGetColumnCallTime.Record(
+            microseconds,
+            tags);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DeleteColumnCallInc(string cacheTypeName, string columnName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        tags.Add(_columnName, columnName);
+        _deleteColumnCallsCount.Add(
+            1,
+            tags);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void DeleteColumnCallTime(double microseconds, string cacheTypeName, string columnName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        tags.Add(_columnName, columnName);
+        _deleteColumnCallTime.Record(
+            microseconds,
+            tags);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetFromViewCallInc(string cacheTypeName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        _setFromViewCallsCount.Add(
+            1,
+            tags);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetFromViewCallTime(double microseconds, string cacheTypeName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        _setFromViewCallTime.Record(
             microseconds,
             tags);
     }

@@ -1,7 +1,8 @@
 ﻿using Microsoft.CodeAnalysis;
+using System;
 using System.Text;
 
-namespace L1CacheSystem.Generator.Generators
+namespace L1CacheSystem.Generator.Generators.Entity
 {
     internal class CacheInterfaceGenerator
     {

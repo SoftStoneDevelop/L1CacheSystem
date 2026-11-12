@@ -2,16 +2,15 @@
 using Microsoft.CodeAnalysis;
 using System.Text;
 
-namespace L1CacheSystem.Generator.Generators
+namespace L1CacheSystem.Generator.Generators.Entity
 {
     internal class CacheCommonMethodsGenerator
     {
         public void GenerateAndSave(
             SourceProductionContext context,
             INamedTypeSymbol containsType,
-            Params[] inputParams, 
+            ParamsBase[] inputParams, 
             StringBuilder builder,
-            string usings,
             string partName)
         {
             Usings(builder);
@@ -56,15 +55,32 @@ public partial class {containsType.Name}
 ");
         }
 
-        private void DisposeGeneratedMethod(StringBuilder builder, Params[] inputParams)
+        private void DisposeGeneratedMethod(StringBuilder builder, ParamsBase[] inputParams)
         {
             builder.Append($@"
     protected override void DisposeGenerated()
     {{");
             foreach (var inputParam in inputParams)
             {
-                builder.Append($@"
-        {inputParam.ItemsCollectionName}.Clear();");
+                if (inputParam is ParamsEntity paramsEntity)
+                {
+                    builder.Append($@"
+        {paramsEntity.ItemsCollectionName}.Clear();");
+                }
+                else if (inputParam is ParamsColumn paramsColumn)
+                {
+                    foreach (var toClearName in paramsColumn.CollectionsToClearNames)
+                    {
+                        builder.Append($@"
+        {toClearName}.Clear();");
+                    }
+
+                    foreach (var toDisposeName in paramsColumn.DisposedResourcesNames)
+                    {
+                        builder.Append($@"
+        {toDisposeName}.Dispose();");
+                    }
+                }
             }
 
             builder.Append($@"
@@ -72,7 +88,7 @@ public partial class {containsType.Name}
 ");
         }
 
-        private void RemoveExpiredGeneratedMethod(StringBuilder builder, Params[] inputParams)
+        private void RemoveExpiredGeneratedMethod(StringBuilder builder, ParamsBase[] inputParams)
         {
             builder.Append($@"
     protected override void RemoveExpiredGenerated()
@@ -80,8 +96,16 @@ public partial class {containsType.Name}
             foreach (var inputParam in inputParams)
             {
                 string collectMetricsStr = inputParam.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount) ? "true" : "false";
-                builder.Append($@"
-        RemoveExpired({inputParam.ItemsCollectionName}, {inputParam.GetLockKeyMthodName}, ""{inputParam.CacheTypeName}"", {collectMetricsStr});");
+                if (inputParam is ParamsEntity paramsEntity)
+                {
+                    builder.Append($@"
+        RemoveExpired({paramsEntity.ItemsCollectionName}, {paramsEntity.GetLockKeyMthodName}, ""{paramsEntity.CacheTypeName}"", {collectMetricsStr});");
+                }
+                else if (inputParam is ParamsColumn paramsColumn)
+                {
+                    builder.Append($@"
+        {paramsColumn.RemoveExpiredMethodName}();");
+                }
             }
 
             builder.Append($@"
@@ -96,13 +120,8 @@ public partial class {containsType.Name}
 ");
         }
 
-        public class Params
+        public abstract class ParamsBase
         {
-            /// <summary>
-            /// The name of the variable that corresponds to the cache collection
-            /// </summary>
-            public string ItemsCollectionName { get; set; }
-
             /// <summary>
             /// The name of the method responsible for retrieving the lock name
             /// </summary>
@@ -114,6 +133,23 @@ public partial class {containsType.Name}
             public string CacheTypeName { get; set; }
 
             public MetricCollectBits MetricCollectFlags { get; set; }
+        }
+
+        public class ParamsEntity : ParamsBase
+        {
+            /// <summary>
+            /// The name of the variable that corresponds to the cache collection
+            /// </summary>
+            public string ItemsCollectionName { get; set; }
+        }
+
+        public class ParamsColumn : ParamsBase
+        {
+            public string RemoveExpiredMethodName { get; set; }
+
+            public string[] CollectionsToClearNames { get; set; }
+
+            public string[] DisposedResourcesNames { get; set; }
         }
     }
 }

@@ -8,17 +8,18 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Threading.Tasks;
 
-namespace Benchmarks;
+namespace Benchmarks.Cases.Entity;
 
 [MemoryDiagnoser]
 [ThreadingDiagnoser]
 [ExceptionDiagnoser]
-[SimpleJob(RuntimeMoniker.Net10_0)]
+[SimpleJob(RuntimeMoniker.Net11_0)]
+[SimpleJob(RuntimeMoniker.NativeAot11_0)]
 public class GetMemoryCacheBench
 {
-    private FakeMeterFactory _meterFactory;
-    private CacheSystem _cacheSystem;
-    private MemoryCache _memoryCache;
+    private FakeMeterFactory? _meterFactory;
+    private CacheSystem? _cacheSystem;
+    private MemoryCache? _memoryCache;
 
     [Params(10_000, 25_000, 50_000)]
     public int Size;
@@ -55,11 +56,11 @@ public class GetMemoryCacheBench
     [IterationCleanup]
     public void IterationCleanup()
     {
-        _cacheSystem.StopAsync(default).Wait();
+        _cacheSystem?.StopAsync(default).Wait();
         _cacheSystem = null;
         _meterFactory = null;
 
-        _memoryCache.Dispose();
+        _memoryCache?.Dispose();
         _memoryCache = null;
     }
 
@@ -68,7 +69,7 @@ public class GetMemoryCacheBench
     {
         for (long i = 0; i < Size; i++)
         {
-            var value = _memoryCache.Get<ValueClass>(i);
+            var value = _memoryCache!.Get<ValueClass>(i);
         }
     }
 
@@ -77,7 +78,7 @@ public class GetMemoryCacheBench
     {
         for (long i = 0; i < Size; i++)
         {
-            var value = _cacheSystem.GetBitsDefault(i, ReturnType.Reference);
+            var value = _cacheSystem!.GetBitsDefault(i, ReturnType.Reference);
         }
     }
 }

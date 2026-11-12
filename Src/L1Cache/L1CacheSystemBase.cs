@@ -13,31 +13,31 @@ namespace L1CacheSystem;
 public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
 {
     [LoggerMessage(Level = LogLevel.Trace, Message = "Clearing locks: Waiting for a resource lock {lockKey} - {inWait}")]
-    private partial void LogClearingLocksWait(string lockKey, int inWait);
+    protected partial void LogClearingLocksWait(string lockKey, int inWait);
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "Error deleting an unused lock {lockKey}, a lock held by another party has been removed")]
-    private partial void LogLockHeldByAnotherRemoved(string lockKey);
+    protected partial void LogLockHeldByAnotherRemoved(string lockKey);
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "Error deleting unused lock {lockKey}; the lock is not present in the collection")]
-    private partial void LogLockIsNotPresent(string lockKey);
+    protected partial void LogLockIsNotPresent(string lockKey);
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "Error deleting unused lock {lockKey}; the operation should always succeed")]
-    private partial void LogLockExitBusyError(string lockKey);
+    protected partial void LogLockExitBusyError(string lockKey);
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "Error deleting expired value {resource}; the operation should always succeed")]
-    private partial void LogResourceExitBusyError(string resource);
+    protected partial void LogResourceExitBusyError(string resource);
 
     [LoggerMessage(Level = LogLevel.Trace, Message = "Waiting for the resource {resource} to be locked - {inWait}")]
-    private partial void LogWaitingForResource(string resource, int inWait);
+    protected partial void LogWaitingForResource(string resource, int inWait);
 
     [LoggerMessage(Level = LogLevel.Trace, Message = "Value not found {resource}")]
-    private partial void LogValueNotFound(string resource);
+    protected partial void LogValueNotFound(string resource);
 
     protected readonly ILogger _logger;
     protected readonly TimeProvider _timeProvider;
     protected readonly L1CacheSystemMetrics _metrics;
 
-    private readonly ConcurrentDictionary<string, CacheLockInfo> _locks = new();
+    protected readonly ConcurrentDictionary<string, CacheLockInfo> _locks = new();
 
     private CancellationTokenSource? _cts;
     private Task? _removeExpireRoutine;
@@ -95,7 +95,7 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         while (!token.IsCancellationRequested)
         {
             ClearExpiredCache();
-            await Task.Delay(delayTime, token).ContinueWith((_) => { }, CancellationToken.None);
+            await Task.Delay(delayTime, token).ContinueWith((_) => { }, CancellationToken.None).ConfigureAwait(false);
         }
     }
 
@@ -471,8 +471,8 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
             }
 
             var startWait = _timeProvider.GetTimestamp();
-            var getLockTimeSpan = TimeSpan.FromSeconds(10);
-            var maxWaitTime = TimeSpan.FromMinutes(1);
+            const int getLockTimeSpan = 10_000;
+            const int maxWaitTime = 60_000;
 
             try
             {
@@ -491,10 +491,10 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
                     }
 
                     var elapsed = _timeProvider.GetElapsedTime(startWait);
-                    if (elapsed > maxWaitTime)
+                    if (elapsed.TotalMilliseconds > maxWaitTime)
                     {
                         _logger.LogWarning(
-                            "The attempt to acquire resource {resource} has lasted longer than {elapsed}, which exceeds the maximum allowed wait time {maxWaitTime}",
+                            "The attempt to acquire resource {resource} has lasted longer than {elapsed}, which exceeds the maximum allowed wait time {maxWaitTime} ms",
                             _resource,
                             elapsed,
                             maxWaitTime);
@@ -506,7 +506,7 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
                     else
                     {
                         _logger.LogWarning(
-                            "The attempt to acquire resource {resource} has been ongoing for more than {elapsed} ({getLockTimeSpan})",
+                            "The attempt to acquire resource {resource} has been ongoing for more than {elapsed} ({getLockTimeSpan} ms)",
                             _resource,
                             elapsed,
                             getLockTimeSpan);

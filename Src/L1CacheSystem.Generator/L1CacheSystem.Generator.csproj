@@ -9,11 +9,16 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" PrivateAssets="all" />
+	</ItemGroup>
+	<ItemGroup Label="not net11.0" Condition="'$(TargetFramework)' != 'net11.0'">
 		<PackageReference Include="System.Collections.Immutable" Version="10.0.14" />
+	</ItemGroup>
+	<ItemGroup Label="net11.0 specific" Condition="'$(TargetFramework)' == 'net11.0'">
+		<PackageReference Include="System.Collections.Immutable" Version="11.0.0" />
 	</ItemGroup>
 	<PropertyGroup>
 		<PackageId>L1CacheSystem.Generator</PackageId>
-		<PackageVersion>10.0.0.0</PackageVersion>
+		<PackageVersion>11.0.0.0</PackageVersion>
 		<Authors>Brevnov Vyacheslav Sergeevich</Authors>
 		<RepositoryUrl>https://github.com/SoftStoneDevelop/L1CacheSystem</RepositoryUrl>
 		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>

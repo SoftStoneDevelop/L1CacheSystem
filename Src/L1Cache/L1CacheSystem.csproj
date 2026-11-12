@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+		<TargetFrameworks>net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
 		<ImplicitUsings>false</ImplicitUsings>
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
 	<PropertyGroup>
 		<PackageId>L1CacheSystem</PackageId>
-		<PackageVersion>10.0.0.0</PackageVersion>
+		<PackageVersion>11.0.0.0</PackageVersion>
 		<Authors>Brevnov Vyacheslav Sergeevich</Authors>
 		<RepositoryUrl>https://github.com/SoftStoneDevelop/L1CacheSystem</RepositoryUrl>
 		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
@@ -26,8 +26,11 @@
 			<PackagePath>\</PackagePath>
 		</None>
 	</ItemGroup>
-	<ItemGroup>
+	<ItemGroup Label="not net11.0 specific" Condition="'$(TargetFramework)' != 'net11.0'">
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
+	</ItemGroup>
+	<ItemGroup Label="net11.0 specific" Condition="'$(TargetFramework)' == 'net11.0'">
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
 	</ItemGroup>
 	<ItemGroup>
 		<InternalsVisibleTo Include="L1CacheSystem.Tests" />

@@ -2,6 +2,10 @@
 
 public class InnerTestClass
 {
+    public InnerTestClass()
+    {
+    }
+
     public InnerTestClass(InnerTestClass origin)
     {
         IntProp = origin.IntProp;
