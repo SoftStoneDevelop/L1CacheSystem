@@ -7,9 +7,9 @@
   [![Nuget](https://img.shields.io/nuget/v/L1CacheSystem?logo=L1CacheSystem)](https://www.nuget.org/packages/L1CacheSystem/)
   [![Downloads](https://img.shields.io/nuget/dt/L1CacheSystem.svg)](https://www.nuget.org/packages/L1CacheSystem/)
   [![Nuget](https://img.shields.io/nuget/v/L1CacheSystem?logo=L1CacheSystem.Attributes)](https://www.nuget.org/packages/L1CacheSystem.Attributes/)
-  [![Downloads](https://img.shields.io/nuget/dt/L1CacheSystem.svg)](https://www.nuget.org/packages/L1CacheSystem.Attributes/)
+  [![Downloads](https://img.shields.io/nuget/dt/L1CacheSystem.Attributes.svg)](https://www.nuget.org/packages/L1CacheSystem.Attributes/)
   [![Nuget](https://img.shields.io/nuget/v/L1CacheSystem?logo=L1CacheSystem.Generator)](https://www.nuget.org/packages/L1CacheSystem.Generator/)
-  [![Downloads](https://img.shields.io/nuget/dt/L1CacheSystem.svg)](https://www.nuget.org/packages/L1CacheSystem.Generator/)
+  [![Downloads](https://img.shields.io/nuget/dt/L1CacheSystem.Generator.svg)](https://www.nuget.org/packages/L1CacheSystem.Generator/)
   [![Stars](https://img.shields.io/github/stars/SoftStoneDevelop/L1CacheSystem?color=brightgreen)](https://github.com/SoftStoneDevelop/L1CacheSystem/stargazers)
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
