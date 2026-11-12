@@ -19,7 +19,11 @@ L1CacheSystem is the application’s internal cache. It was created to solve two
  - The ability to filter by all cache entities
  - Blocking a specific resource by key
 
-This is a niche, simple solution adapted to the specific tasks I’ve encountered. When all entities fit into RAM, and there’s no point in using Redis or something more complex. It doesn’t claim compatibility with hybrid caching or other approaches.
+Caching is also supported in two modes:
+ - Entities
+ - Columns
+
+Columns are more data‑oriented. They can be useful if you often need to scan properties within a class.
  
 <h1 align="left">
   <a>Usage</a>
@@ -65,6 +69,12 @@ public partial interface IServiceCacheSystem
     metricCollectFlags: MetricCollectBits.AllBits, // what metrics for this specific cache need to collect
     copyMethodName: nameof(MyValue.Copy),
     copyMethodType: CopyMethodType.CopyMethodOnType)] // we also support: static method and copy-constructor
+[KeyColumnCache(
+    keyType: typeof(long), // In column mode, the key is a separate entity from the columns.
+    interfaceType: typeof(IServiceCacheSystem),
+    cacheName: "YouColumnCacheName"),
+    ColumnCache(columnType: typeof(long), columnName: nameof(MyValue.Id)),
+    ColumnCache(columnType: typeof(double), columnName: nameof(MyValue.Value))] // It is recommended to have no more than 32 columns for each KeyColumnCache.
 public partial class ServiceCacheSystem : L1CacheSystemBase, IServiceCacheSystem
 {
     public ServiceCacheSystem(
@@ -109,7 +119,9 @@ services.AddSingleton<IL1CacheSystemBase>((provider) => provider.GetRequiredServ
 services.AddSingleton<IServiceCacheSystem>((provider) => provider.GetRequiredService<ServiceCacheSystem>());
 ```
 
-Settings is done. Now usage case:
+Settings is done.
+
+Now usage case (Entity):
 ```csharp
 public class MyValueService
 {
@@ -170,6 +182,64 @@ public class MyValueService
 }
 ```
 
+Now usage case (Column):
+```csharp
+public class MyValueService
+{
+  private readonly ILogger<MyValueService> _logger;
+  private readonly IServiceCacheSystem _casheSystem;
+  
+  public MyValueService(ILogger<MyValueService> logger, IServiceCacheSystem casheSystem)
+  {
+    _logger = logger;
+    _casheSystem = casheSystem;
+  }
+
+  public CreateValue(long id)
+  {
+    await using var lockGuard = new LockGuard(logger: _logger, parent: null);
+
+    await _cacheSystem.GetYouCacheNameLockAsync(id, lockGuard, default);
+    var value = new MyValue() { Id = id, Value = 7114 };
+
+    var view = new CacheSystem.SetViewYouColumnCacheName<MyValue> // You can fill it in from anywhere; you just need to create a view and fill in its fields.
+    {
+        Id = SetViewOperation.Set,
+        FuncId = static (source) => source.Id,
+        Value = SetViewOperation.Set,
+        FuncValue = static (source) => source.IntProp
+    };
+
+    _casheSystem.SetYouColumnCacheNameFromView(value.Id, view, expiry: null);
+
+    // You can also fill in and update not everything at once, but column by column.
+    // _cacheSystem.SetColumnCacheId(value.Id, value.Id, expiry: null);
+    // _cacheSystem.SetColumnCacheId(value.Id, value.Value, expiry: null);
+  }
+
+  public double GetValue(long id)
+  {
+    var haveValue = _cacheSystem.TryGetYouColumnCacheNameValue(id, out var value);
+    // haveValue
+    // There may be no speakers at all, since speakers are just a promise that they might exist, not a requirement. Each entity may or may not have them.
+
+    return value; // We have a simple example, so we’re definitely sure that it’s there.
+  }
+
+  public double SumValue()
+  {
+    double sum;
+    _cacheSystem.ForeachByYouColumnCacheNameValue((value) => sum += value;);
+    // _cacheSystem.ForeachByYouColumnCacheNameId and etc
+
+    // In general, the idea is that the column is stored in a continuous array,
+    // and therefore iterating through it is faster than iterating through random fragments in Entity mode.
+
+    return sum;
+  }
+}
+```
+
 What metrics look like, using Grafana visualization as an example:
 <img width="2058" height="1147" alt="image" src="https://github.com/user-attachments/assets/96e0eff2-92b0-4958-a7b4-0268a9091a47" />
 <img width="2062" height="1114" alt="image" src="https://github.com/user-attachments/assets/8fac71c5-ead0-412a-8b98-9d67df48cdc6" />
@@ -177,8 +247,3 @@ What metrics look like, using Grafana visualization as an example:
 <img width="2066" height="1112" alt="image" src="https://github.com/user-attachments/assets/e916b4fa-e05f-4b91-81d7-4d13d0fee8af" />
 <img width="2071" height="604" alt="image" src="https://github.com/user-attachments/assets/b39d5efd-5a2d-4427-9383-4f84d4bcd15d" />
 <img width="2067" height="613" alt="image" src="https://github.com/user-attachments/assets/0ad45a57-2dd1-4087-aaf0-ce8731d3dc1b" />
-
-
-
-
-
