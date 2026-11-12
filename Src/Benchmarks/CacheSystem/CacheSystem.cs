@@ -6,12 +6,8 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
-using System.Drawing;
-using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics.X86;
 using System.Threading;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Benchmarks.Backend;
 
@@ -55,6 +51,26 @@ namespace Benchmarks.Backend;
         metricCollectFlags: MetricCollectBits.AllBits,
         copyMethodName: nameof(ValueClass.MakeCopy),
         copyMethodType: CopyMethodType.CopyMethodOnType)]
+[KeyColumnCache(
+    keyType: typeof(long),
+    interfaceType: typeof(ICacheSystem),
+    cacheName: "ColumnCache"),
+    ColumnCache(
+    columnType: typeof(long),
+    interfaceType: typeof(ICacheSystem),
+    columnName: nameof(ValueClass.Id)),
+    ColumnCache(
+    columnType: typeof(int),
+    interfaceType: typeof(ICacheSystem),
+    columnName: nameof(ValueClass.IntProp)),
+    ColumnCache(
+    columnType: typeof(double?),
+    interfaceType: typeof(ICacheSystem),
+    columnName: nameof(ValueClass.DoubleProp)),
+    ColumnCache(
+    columnType: typeof(ValueClass),
+    interfaceType: typeof(ICacheSystem),
+    columnName: nameof(ValueClass.Child))]
 public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICacheSystem
 {
     public CacheSystem(
@@ -79,29 +95,28 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
     private readonly List<long> _customIdPropertyReverse = [];
     private readonly List<long> _customIdProperty = [];
 
-    public enum SetViewOperation : ushort
+    public ref struct SetViewInfoRef<T>
     {
-        None = 0,
-        Set = 1,
-        RemoveIfExist = 2
+        public T Source { get; set; }
+
+        public SetViewOperation IdProp { get; set; }
+        public readonly Func<T, long>? FuncIdProp { get; init; }
+        public readonly long GetIdProp() => FuncIdProp!(Source);
+
+        public SetViewOperation IntProp { get; set; }
+        public readonly Func<T, int>? FuncIntProp { get; init; }
+        public readonly int GetIntProp() => FuncIntProp!(Source);
+
+        public SetViewOperation DoubleProp { get; set; }
+        public readonly Func<T, double?>? FuncDoubleProp { get; init; }
+        public readonly double? GetDoubleProp() => FuncDoubleProp!(Source);
+
+        public SetViewOperation ChildProp { get; set; }
+        public readonly Func<T, ValueClass?>? FuncChildProp { get; init; }
+        public readonly ValueClass? GetChildProp() => FuncChildProp!(Source);
     }
 
-    public readonly struct SetViewInfo
-    {
-        public readonly SetViewOperation IdProp { get; init; }
-        public readonly Func<long>? FuncIdProp { get; init; }
-
-        public readonly SetViewOperation IntProp { get; init; }
-        public readonly Func<int>? FuncIntProp { get; init; }
-
-        public readonly SetViewOperation DoubleProp { get; init; }
-        public readonly Func<double?>? FuncDoubleProp { get; init; }
-
-        public readonly SetViewOperation ChildProp { get; init; }
-        public readonly Func<ValueClass>? FuncChildProp { get; init; }
-    }
-
-    public void SetCustomFromView(long key, in SetViewInfo viewInfo)
+    public void SetCustomFromView<T>(long key, in SetViewInfoRef<T> viewInfo)
     {
         _customSlimLock.EnterWriteLock();
         try
@@ -113,28 +128,28 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                 if (viewInfo.IdProp == SetViewOperation.Set)
                 {
                     si.SetIndex(0, true, _customIdProperty.Count);
-                    _customIdProperty.Add(viewInfo.FuncIdProp!());
+                    _customIdProperty.Add(viewInfo.GetIdProp());
                     _customIdPropertyReverse.Add(key);
                 }
 
                 if (viewInfo.IntProp == SetViewOperation.Set)
                 {
                     si.SetIndex(1, true, _customIntPropProperty.Count);
-                    _customIntPropProperty.Add(viewInfo.FuncIntProp!());
+                    _customIntPropProperty.Add(viewInfo.GetIntProp());
                     _customIntPropPropertyReverse.Add(key);
                 }
 
                 if (viewInfo.DoubleProp == SetViewOperation.Set)
                 {
                     si.SetIndex(2, true, _customDoublePropProperty.Count);
-                    _customDoublePropProperty.Add(viewInfo.FuncDoubleProp!());
+                    _customDoublePropProperty.Add(viewInfo.GetDoubleProp());
                     _customDoublePropPropertyReverse.Add(key);
                 }
 
                 if (viewInfo.ChildProp == SetViewOperation.Set)
                 {
                     si.SetIndex(3, true, _customChildProperty.Count);
-                    _customChildProperty.Add(viewInfo.FuncChildProp!());
+                    _customChildProperty.Add(viewInfo.GetChildProp());
                     _customChildPropertyReverse.Add(key);
                 }
 
@@ -150,7 +165,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                         if (viewInfo.IdProp == SetViewOperation.Set)
                         {
                             index.SetIndex(0, true, _customIdProperty.Count);
-                            _customIdProperty.Add(viewInfo.FuncIdProp!());
+                            _customIdProperty.Add(viewInfo.GetIdProp());
                             _customIdPropertyReverse.Add(key);
                         }
                     }
@@ -158,7 +173,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                     {
                         if (viewInfo.IdProp == SetViewOperation.Set)
                         {
-                            _customIdProperty[propIndex] = viewInfo.FuncIdProp!();
+                            _customIdProperty[propIndex] = viewInfo.GetIdProp();
                         }
                         else
                         {
@@ -191,7 +206,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                         if (viewInfo.IntProp == SetViewOperation.Set)
                         {
                             index.SetIndex(1, true, _customIntPropProperty.Count);
-                            _customIntPropProperty.Add(viewInfo.FuncIntProp!());
+                            _customIntPropProperty.Add(viewInfo.GetIntProp());
                             _customIntPropPropertyReverse.Add(key);
                         }
                     }
@@ -199,7 +214,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                     {
                         if (viewInfo.IntProp == SetViewOperation.Set)
                         {
-                            _customIntPropProperty[propIndex] = viewInfo.FuncIntProp!();
+                            _customIntPropProperty[propIndex] = viewInfo.GetIntProp();
                         }
                         else
                         {
@@ -216,7 +231,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                                 _customIntPropPropertyReverse.RemoveAt(endOfListIndex);
 
                                 ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
-                                swapIndex.SetIndex(0, false, propIndex);
+                                swapIndex.SetIndex(1, false, propIndex);
                                 _customIntPropProperty[propIndex] = _customIntPropProperty[endOfListIndex];
                                 _customIntPropProperty.RemoveAt(endOfListIndex);
                             }
@@ -232,7 +247,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                         if (viewInfo.DoubleProp == SetViewOperation.Set)
                         {
                             index.SetIndex(2, true, _customDoublePropProperty.Count);
-                            _customDoublePropProperty.Add(viewInfo.FuncDoubleProp!());
+                            _customDoublePropProperty.Add(viewInfo.GetDoubleProp());
                             _customDoublePropPropertyReverse.Add(key);
                         }
                     }
@@ -240,7 +255,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                     {
                         if (viewInfo.DoubleProp == SetViewOperation.Set)
                         {
-                            _customDoublePropProperty[propIndex] = viewInfo.FuncDoubleProp!();
+                            _customDoublePropProperty[propIndex] = viewInfo.GetDoubleProp();
                         }
                         else
                         {
@@ -257,7 +272,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                                 _customDoublePropPropertyReverse.RemoveAt(endOfListIndex);
 
                                 ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
-                                swapIndex.SetIndex(0, false, propIndex);
+                                swapIndex.SetIndex(2, false, propIndex);
                                 _customDoublePropProperty[propIndex] = _customDoublePropProperty[endOfListIndex];
                                 _customDoublePropProperty.RemoveAt(endOfListIndex);
                             }
@@ -273,7 +288,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                         if (viewInfo.ChildProp == SetViewOperation.Set)
                         {
                             index.SetIndex(3, true, _customChildProperty.Count);
-                            _customChildProperty.Add(viewInfo.FuncChildProp!());
+                            _customChildProperty.Add(viewInfo.GetChildProp());
                             _customChildPropertyReverse.Add(key);
                         }
                     }
@@ -281,7 +296,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                     {
                         if (viewInfo.ChildProp == SetViewOperation.Set)
                         {
-                            _customChildProperty[propIndex] = viewInfo.FuncChildProp!();
+                            _customChildProperty[propIndex] = viewInfo.GetChildProp();
                         }
                         else
                         {
@@ -298,7 +313,7 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
                                 _customChildPropertyReverse.RemoveAt(endOfListIndex);
 
                                 ref SparseIndex swapIndex = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, swapId);
-                                swapIndex.SetIndex(0, false, propIndex);
+                                swapIndex.SetIndex(3, false, propIndex);
                                 _customChildPropertyReverse[propIndex] = _customChildPropertyReverse[endOfListIndex];
                                 _customChildPropertyReverse.RemoveAt(endOfListIndex);
                             }
@@ -401,38 +416,6 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
 
     private readonly List<long> _customIntPropPropertyReverse = [];
     private readonly List<int> _customIntPropProperty = [];
-
-    public bool TryGetCustomIntPropSpan(long key, out int intProp)
-    {
-        _customSlimLock.EnterReadLock();
-        try
-        {
-            ref SparseIndex index = ref CollectionsMarshal.GetValueRefOrNullRef(_customIndexes, key);
-            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
-            {
-                intProp = 0;
-                return false;
-            }
-            else
-            {
-                var listIndex = index.GetIndex(1);
-                if (listIndex == -1)
-                {
-                    intProp = 0;
-                    return false;
-                }
-                else
-                {
-                    intProp = CollectionsMarshal.AsSpan(_customIntPropProperty)[listIndex];
-                    return true;
-                }
-            }
-        }
-        finally
-        {
-            _customSlimLock.ExitReadLock();
-        }
-    }
 
     public bool TryGetCustomIntProp(long key, out int intProp)
     {
@@ -548,13 +531,9 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
             {
                 var si = new SparseIndex();
 
-                var haveDoubleProp = doubleProp.HasValue;
-                si.SetIndex(2, haveDoubleProp, _customDoublePropProperty.Count);
-                if (haveDoubleProp)
-                {
-                    _customDoublePropProperty.Add(doubleProp.Value);
-                    _customDoublePropPropertyReverse.Add(key);
-                }
+                si.SetIndex(2, true, _customDoublePropProperty.Count);
+                _customDoublePropProperty.Add(doubleProp);
+                _customDoublePropPropertyReverse.Add(key);
 
                 _customIndexes.Add(key, si);
             }
@@ -581,6 +560,24 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
 
     private readonly List<long> _customChildPropertyReverse = [];
     private readonly List<ValueClass?> _customChildProperty = [];
+
+    public void ForeachByChildPropColumn(Action<long, ValueClass?> childPropAction)
+    {
+        _customSlimLock.EnterReadLock();
+        try
+        {
+            var spanChildProp = CollectionsMarshal.AsSpan(_customChildProperty);
+            var spanChildPropReverse = CollectionsMarshal.AsSpan(_customChildPropertyReverse);
+            for (int i = 0; i < spanChildProp.Length; i++)
+            {
+                childPropAction(spanChildPropReverse[i], spanChildProp[i]);
+            }
+        }
+        finally
+        {
+            _customSlimLock.ExitReadLock();
+        }
+    }
 
     public bool TryGetCustomChildProp(long key, out ValueClass? childProp)
     {
@@ -624,13 +621,9 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
             {
                 var si = new SparseIndex();
 
-                var haveChild = child != null;
-                si.SetIndex(3, haveChild, _customChildProperty.Count);
-                if (haveChild)
-                {
-                    _customChildProperty.Add(child);
-                    _customChildPropertyReverse.Add(key);
-                }
+                si.SetIndex(3, true, _customChildProperty.Count);
+                _customChildProperty.Add(child);
+                _customChildPropertyReverse.Add(key);
 
                 _customIndexes.Add(key, si);
             }

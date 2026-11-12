@@ -13,7 +13,7 @@ namespace Benchmarks.Cases.Column;
 [ThreadingDiagnoser]
 [ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net10_0)]
-public class ForeachByColumnBench
+public class ForeachByIntColumnBench
 {
     private FakeMeterFactory? _meterFactory;
     private CacheSystem? _cacheSystem;
@@ -27,6 +27,16 @@ public class ForeachByColumnBench
         _meterFactory = new FakeMeterFactory();
         _cacheSystem = new CacheSystem(NullLogger.Instance, TimeProvider.System, _meterFactory);
         _cacheSystem.StartAsync(default).Wait();
+
+        var view = new CacheSystem.SetViewInfoRef<ValueClass>
+        {
+            IdProp = SetViewOperation.Set,
+            FuncIdProp = static (source) => source.Id,
+            IntProp = SetViewOperation.Set,
+            FuncIntProp = static (source) => source.IntProp,
+            FuncDoubleProp = static (source) => source.DoubleProp.HasValue ? source.DoubleProp : null,
+            FuncChildProp = static (source) => source.Child ?? null
+        };
 
         for (int i = 0; i < Size; i++)
         {
@@ -44,27 +54,20 @@ public class ForeachByColumnBench
                 IntProp = i * 2,
                 DoubleProp = haveOptional ? i * 3d : null,
             };
+
+            view.Source = value;
+            view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+            view.ChildProp = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+
+            _cacheSystem!.SetCustomFromView(value.Id, view);
             _cacheSystem.SetBitsNone(value, ValueOwnership.Transferred);
-            _cacheSystem!.SetCustomFromView(
-                value.Id,
-                new CacheSystem.SetViewInfo
-                {
-                    IdProp = CacheSystem.SetViewOperation.Set,
-                    FuncIdProp = () => value.Id,
-                    IntProp = CacheSystem.SetViewOperation.Set,
-                    FuncIntProp = () => value.IntProp,
-                    DoubleProp = value.DoubleProp.HasValue ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
-                    FuncDoubleProp = value.DoubleProp.HasValue ? () => value.DoubleProp : null,
-                    ChildProp = value.Child != null ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
-                    FuncChildProp = value.Child != null ? () => value.Child : null
-                });
         }
     }
 
     [IterationCleanup]
     public void IterationCleanup()
     {
-        _cacheSystem.StopAsync(default).Wait();
+        _cacheSystem?.StopAsync(default).Wait();
         _cacheSystem = null;
         _meterFactory = null;
     }
@@ -73,13 +76,13 @@ public class ForeachByColumnBench
     public async Task GetEntity()
     {
         var sum = 0;
-        _cacheSystem.ForeachBitsNone((key, value) => { sum += value.IntProp; });
+        _cacheSystem!.ForeachBitsNone((key, value) => { sum += value.IntProp; });
     }
 
     [Benchmark(Description = "Column")]
     public async Task GetColumn()
     {
         var sum = 0;
-        _cacheSystem.ForeachByIntPropColumn((key, intProp) => { sum += intProp; });
+        _cacheSystem!.ForeachByIntPropColumn((key, intProp) => { sum += intProp; });
     }
 }

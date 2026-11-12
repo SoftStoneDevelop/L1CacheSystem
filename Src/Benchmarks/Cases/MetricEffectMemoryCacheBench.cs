@@ -13,8 +13,8 @@ namespace Benchmarks.Cases;
 [SimpleJob(RuntimeMoniker.Net10_0)]
 public class MetricEffectMemoryCacheBench
 {
-    private FakeMeterFactory _meterFactory;
-    private CacheSystem _cacheSystem;
+    private FakeMeterFactory? _meterFactory;
+    private CacheSystem? _cacheSystem;
 
     [Params(10_000, 25_000, 50_000)]
     public int Size;
@@ -31,7 +31,7 @@ public class MetricEffectMemoryCacheBench
     [IterationCleanup]
     public void IterationCleanup()
     {
-        _cacheSystem.StopAsync(default).Wait();
+        _cacheSystem?.StopAsync(default).Wait();
 
         _cacheSystem = null;
         _meterFactory = null;
@@ -56,22 +56,22 @@ public class MetricEffectMemoryCacheBench
                 DoubleProp = i * 8745d
             };
 
-            _cacheSystem.SetBitsNone(value, ValueOwnership.Transferred);
+            _cacheSystem!.SetBitsNone(value, ValueOwnership.Transferred);
         }
 
         for (long i = 0; i < Size; i++)
         {
-            var value = _cacheSystem.GetBitsNone(i, ReturnType.Reference);
+            var value = _cacheSystem!.GetBitsNone(i, ReturnType.Reference);
         }
 
         for (long i = 0; i < 100; i++)
         {
-            var valueAll = _cacheSystem.GetAllBitsNone(returnType: ReturnType.Reference);
+            var valueAll = _cacheSystem!.GetAllBitsNone(returnType: ReturnType.Reference);
         }
 
         for (long i = 0; i < Size; i++)
         {
-            _cacheSystem.DeleteBitsNone(i);
+            _cacheSystem!.DeleteBitsNone(i);
         }
     }
 
@@ -94,22 +94,22 @@ public class MetricEffectMemoryCacheBench
                 DoubleProp = i * 8745d
             };
 
-            _cacheSystem.SetBitsDefault(value, ValueOwnership.Transferred);
+            _cacheSystem!.SetBitsDefault(value, ValueOwnership.Transferred);
         }
 
         for (long i = 0; i < Size; i++)
         {
-            var value = _cacheSystem.GetBitsDefault(i, ReturnType.Reference);
+            var value = _cacheSystem!.GetBitsDefault(i, ReturnType.Reference);
         }
 
         for (long i = 0; i < 100; i++)
         {
-            var valueAll = _cacheSystem.GetAllBitsDefault(returnType: ReturnType.Reference);
+            var valueAll = _cacheSystem!.GetAllBitsDefault(returnType: ReturnType.Reference);
         }
 
         for (long i = 0; i < Size; i++)
         {
-            _cacheSystem.DeleteBitsDefault(i);
+            _cacheSystem!.DeleteBitsDefault(i);
         }
     }
 
@@ -132,22 +132,22 @@ public class MetricEffectMemoryCacheBench
                 DoubleProp = i * 8745d
             };
 
-            _cacheSystem.SetBitsAllCount(value, ValueOwnership.Transferred);
+            _cacheSystem!.SetBitsAllCount(value, ValueOwnership.Transferred);
         }
 
         for (long i = 0; i < Size; i++)
         {
-            var value = _cacheSystem.GetBitsAllCount(i, ReturnType.Reference);
+            var value = _cacheSystem!.GetBitsAllCount(i, ReturnType.Reference);
         }
 
         for (long i = 0; i < 100; i++)
         {
-            var valueAll = _cacheSystem.GetAllBitsAllCount(returnType: ReturnType.Reference);
+            var valueAll = _cacheSystem!.GetAllBitsAllCount(returnType: ReturnType.Reference);
         }
 
         for (long i = 0; i < Size; i++)
         {
-            _cacheSystem.DeleteBitsAllCount(i);
+            _cacheSystem!.DeleteBitsAllCount(i);
         }
     }
 
@@ -170,22 +170,22 @@ public class MetricEffectMemoryCacheBench
                 DoubleProp = i * 8745d
             };
 
-            _cacheSystem.SetBitsAllTimes(value, ValueOwnership.Transferred);
+            _cacheSystem!.SetBitsAllTimes(value, ValueOwnership.Transferred);
         }
 
         for (long i = 0; i < Size; i++)
         {
-            var value = _cacheSystem.GetBitsAllTimes(i, ReturnType.Reference);
+            var value = _cacheSystem!.GetBitsAllTimes(i, ReturnType.Reference);
         }
 
         for (long i = 0; i < 100; i++)
         {
-            var valueAll = _cacheSystem.GetAllBitsAllTimes(returnType: ReturnType.Reference);
+            var valueAll = _cacheSystem!.GetAllBitsAllTimes(returnType: ReturnType.Reference);
         }
 
         for (long i = 0; i < Size; i++)
         {
-            _cacheSystem.DeleteBitsAllTimes(i);
+            _cacheSystem!.DeleteBitsAllTimes(i);
         }
     }
 
@@ -208,23 +208,23 @@ public class MetricEffectMemoryCacheBench
                 DoubleProp = i * 8745d
             };
 
-            _cacheSystem.SetBitsAll(value, ValueOwnership.Transferred);
+            _cacheSystem!.SetBitsAll(value, ValueOwnership.Transferred);
         }
 
         for (long i = 0; i < Size; i++)
         {
-            var value = _cacheSystem.GetBitsAll(i, ReturnType.Reference);
+            var value = _cacheSystem!.GetBitsAll(i, ReturnType.Reference);
         }
 
 
         for (long i = 0; i < 100; i++)
         {
-            var valueAll = _cacheSystem.GetAllBitsAll(returnType: ReturnType.Reference);
+            var valueAll = _cacheSystem!.GetAllBitsAll(returnType: ReturnType.Reference);
         }
 
         for (long i = 0; i < Size; i++)
         {
-            _cacheSystem.DeleteBitsAll(i);
+            _cacheSystem!.DeleteBitsAll(i);
         }
     }
 }

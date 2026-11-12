@@ -16,9 +16,9 @@ namespace Benchmarks.Cases.Entity;
 [SimpleJob(RuntimeMoniker.Net10_0)]
 public class UpdateMemoryCacheBench
 {
-    private FakeMeterFactory _meterFactory;
-    private CacheSystem _cacheSystem;
-    private MemoryCache _memoryCache;
+    private FakeMeterFactory? _meterFactory;
+    private CacheSystem? _cacheSystem;
+    private MemoryCache? _memoryCache;
 
     [Params(10_000, 25_000, 50_000)]
     public int Size;
@@ -61,11 +61,11 @@ public class UpdateMemoryCacheBench
     [IterationCleanup]
     public void IterationCleanup()
     {
-        _cacheSystem.StopAsync(default).Wait();
+        _cacheSystem?.StopAsync(default).Wait();
         _cacheSystem = null;
         _meterFactory = null;
 
-        _memoryCache.Dispose();
+        _memoryCache?.Dispose();
         _memoryCache = null;
     }
 
@@ -88,9 +88,7 @@ public class UpdateMemoryCacheBench
                 DoubleProp = i * 8745d
             };
 
-            _memoryCache.Set(
-                i,
-                value);
+            _memoryCache!.Set(i, value);
         }
     }
 
@@ -113,7 +111,7 @@ public class UpdateMemoryCacheBench
                 DoubleProp = i * 8745d
             };
 
-            _cacheSystem.SetBitsDefault(value, ValueOwnership.Transferred);
+            _cacheSystem!.SetBitsDefault(value, ValueOwnership.Transferred);
         }
     }
 }

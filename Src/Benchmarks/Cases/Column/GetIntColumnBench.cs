@@ -13,7 +13,7 @@ namespace Benchmarks.Cases.Column;
 [ThreadingDiagnoser]
 [ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net10_0)]
-public class GetColumnBench
+public class GetIntColumnBench
 {
     private FakeMeterFactory? _meterFactory;
     private CacheSystem? _cacheSystem;
@@ -27,6 +27,16 @@ public class GetColumnBench
         _meterFactory = new FakeMeterFactory();
         _cacheSystem = new CacheSystem(NullLogger.Instance, TimeProvider.System, _meterFactory);
         _cacheSystem.StartAsync(default).Wait();
+
+        var view = new CacheSystem.SetViewInfoRef<ValueClass>
+        {
+            IdProp = SetViewOperation.Set,
+            FuncIdProp = static (source) => source.Id,
+            IntProp = SetViewOperation.Set,
+            FuncIntProp = static (source) => source.IntProp,
+            FuncDoubleProp = static (source) => source.DoubleProp.HasValue ? source.DoubleProp : null,
+            FuncChildProp = static (source) => source.Child ?? null
+        };
 
         for (int i = 0; i < Size; i++)
         {
@@ -44,20 +54,13 @@ public class GetColumnBench
                 IntProp = i * 2,
                 DoubleProp = haveOptional ? i * 8745d : null,
             };
+
+            view.Source = value;
+            view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+            view.ChildProp = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+            _cacheSystem!.SetCustomFromView(value.Id, view);
+
             _cacheSystem.SetBitsNone(value, ValueOwnership.Transferred);
-            _cacheSystem!.SetCustomFromView(
-                value.Id,
-                new CacheSystem.SetViewInfo
-                {
-                    IdProp = CacheSystem.SetViewOperation.Set,
-                    FuncIdProp = () => value.Id,
-                    IntProp = CacheSystem.SetViewOperation.Set,
-                    FuncIntProp = () => value.IntProp,
-                    DoubleProp = value.DoubleProp.HasValue ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
-                    FuncDoubleProp = value.DoubleProp.HasValue ? () => value.DoubleProp : null,
-                    ChildProp = value.Child != null ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
-                    FuncChildProp = value.Child != null ? () => value.Child : null
-                });
         }
     }
 
@@ -69,7 +72,7 @@ public class GetColumnBench
         _meterFactory = null;
     }
 
-    [Benchmark(Description = "Get Entity", Baseline = true)]
+    [Benchmark(Description = "Get Int Entity", Baseline = true)]
     public async Task GetEntity()
     {
         for (long i = 0; i < Size; i++)
@@ -78,21 +81,12 @@ public class GetColumnBench
         }
     }
 
-    [Benchmark(Description = "Get Column")]
+    [Benchmark(Description = "Get Int Column")]
     public async Task GetColumn()
     {
         for (long i = 0; i < Size; i++)
         {
             _ = _cacheSystem!.TryGetCustomIntProp(i, out var intProp);
-        }
-    }
-
-    [Benchmark(Description = "Get ColumnSpan")]
-    public async Task GetColumnSpan()
-    {
-        for (long i = 0; i < Size; i++)
-        {
-            _ = _cacheSystem!.TryGetCustomIntPropSpan(i, out var intProp);
         }
     }
 }

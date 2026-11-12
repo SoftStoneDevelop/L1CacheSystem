@@ -13,13 +13,14 @@ namespace Benchmarks.Cases.Column;
 [ThreadingDiagnoser]
 [ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net10_0)]
+[SimpleJob(RuntimeMoniker.NativeAot10_0)]
 public class SetViewBench
 {
     private FakeMeterFactory? _meterFactory;
     private CacheSystem? _cacheSystem;
     private ValueClass[]? _values;
 
-    [Params(10_000, 25_000, 50_000)]
+    [Params(10_000, 25_000, 50_000, 100_000)]
     public int Size;
 
     [IterationSetup]
@@ -77,25 +78,28 @@ public class SetViewBench
         }
     }
 
-    [Benchmark(Description = "Set View")]
-    public async Task SetColumn()
+    [Benchmark(Description = "Set ViewT")]
+    public async Task SetTRefColumn()
     {
+        var view = new CacheSystem.SetViewInfoRef<ValueClass>
+        {
+            IdProp = SetViewOperation.Set,
+            FuncIdProp = static (source) => source.Id,
+            IntProp = SetViewOperation.Set,
+            FuncIntProp = static (source) => source.IntProp,
+            FuncDoubleProp = static (source) => source.DoubleProp.HasValue ? source.DoubleProp : null,
+            FuncChildProp = static (source) => source.Child ?? null
+        };
+
         for (int i = 0; i < Size; i++)
         {
             var value = _values![i];
-            _cacheSystem!.SetCustomFromView(
-                value.Id,
-                new CacheSystem.SetViewInfo
-                {
-                    IdProp = CacheSystem.SetViewOperation.Set,
-                    FuncIdProp = () => value.Id,
-                    IntProp = CacheSystem.SetViewOperation.Set,
-                    FuncIntProp = () => value.IntProp,
-                    DoubleProp = value.DoubleProp.HasValue ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
-                    FuncDoubleProp = value.DoubleProp.HasValue ? () => value.DoubleProp : null,
-                    ChildProp = value.Child != null ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
-                    FuncChildProp = value.Child != null ? () => value.Child : null
-                });
+
+            view.Source = value;
+            view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+            view.ChildProp = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+
+            _cacheSystem!.SetCustomFromView(value.Id, view);
         }
     }
 }

@@ -7,10 +7,11 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        BenchmarkRunner.Run<GetColumnBench>();
+        //BenchmarkRunner.Run<ForeachByChildColumnBench>();
+        //BenchmarkRunner.Run<GetIntColumnBench>();
         BenchmarkRunner.Run<SetViewBench>();
-        BenchmarkRunner.Run<ForeachByColumnBench>();
-        BenchmarkRunner.Run<UpdateColumnBench>();
+        //BenchmarkRunner.Run<ForeachByIntColumnBench>();
+        //BenchmarkRunner.Run<UpdateColumnBench>();
 
         //BenchmarkRunner.Run<GetMemoryCacheBench>();
         //BenchmarkRunner.Run<SetMemoryCacheBench>();

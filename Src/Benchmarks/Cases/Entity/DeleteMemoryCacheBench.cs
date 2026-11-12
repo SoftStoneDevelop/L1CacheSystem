@@ -16,9 +16,9 @@ namespace Benchmarks.Cases.Entity;
 [SimpleJob(RuntimeMoniker.Net10_0)]
 public class DeleteMemoryCacheBench
 {
-    private FakeMeterFactory _meterFactory;
-    private CacheSystem _cacheSystem;
-    private MemoryCache _memoryCache;
+    private FakeMeterFactory? _meterFactory;
+    private CacheSystem? _cacheSystem;
+    private MemoryCache? _memoryCache;
 
     [Params(10_000, 25_000, 50_000)]
     public int Size;
@@ -55,11 +55,11 @@ public class DeleteMemoryCacheBench
     [IterationCleanup]
     public void IterationCleanup()
     {
-        _cacheSystem.StopAsync(default).Wait();
+        _cacheSystem?.StopAsync(default).Wait();
         _cacheSystem = null;
         _meterFactory = null;
 
-        _memoryCache.Dispose();
+        _memoryCache?.Dispose();
         _memoryCache = null;
     }
 
@@ -68,7 +68,7 @@ public class DeleteMemoryCacheBench
     {
         for (long i = 0; i < Size; i++)
         {
-            _memoryCache.Remove(i);
+            _memoryCache!.Remove(i);
         }
     }
 
@@ -77,7 +77,7 @@ public class DeleteMemoryCacheBench
     {
         for (long i = 0; i < Size; i++)
         {
-            _cacheSystem.DeleteBitsDefault(i);
+            _cacheSystem!.DeleteBitsDefault(i);
         }
     }
 }

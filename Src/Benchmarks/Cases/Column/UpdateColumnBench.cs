@@ -28,6 +28,16 @@ public class UpdateColumnBench
         _cacheSystem = new CacheSystem(NullLogger.Instance, TimeProvider.System, _meterFactory);
         _cacheSystem.StartAsync(default).Wait();
 
+        var view = new CacheSystem.SetViewInfoRef<ValueClass>
+        {
+            IdProp = SetViewOperation.Set,
+            FuncIdProp = static (source) => source.Id,
+            IntProp = SetViewOperation.Set,
+            FuncIntProp = static (source) => source.IntProp,
+            FuncDoubleProp = static (source) => source.DoubleProp.HasValue ? source.DoubleProp : null,
+            FuncChildProp = static (source) => source.Child ?? null
+        };
+
         for (int i = 0; i < Size; i++)
         {
             var haveOptional = i % 2 == 1;
@@ -44,20 +54,13 @@ public class UpdateColumnBench
                 IntProp = i * 2,
                 DoubleProp = haveOptional ? i * 8745d : null,
             };
+
+            view.Source = value;
+            view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+            view.ChildProp = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+            _cacheSystem!.SetCustomFromView(value.Id, view);
+
             _cacheSystem.SetBitsNone(value, ValueOwnership.Transferred);
-            _cacheSystem!.SetCustomFromView(
-                value.Id,
-                new CacheSystem.SetViewInfo
-                {
-                    IdProp = CacheSystem.SetViewOperation.Set,
-                    FuncIdProp = () => value.Id,
-                    IntProp = CacheSystem.SetViewOperation.Set,
-                    FuncIntProp = () => value.IntProp,
-                    DoubleProp = value.DoubleProp.HasValue ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
-                    FuncDoubleProp = value.DoubleProp.HasValue ? () => value.DoubleProp : null,
-                    ChildProp = value.Child != null ? CacheSystem.SetViewOperation.Set : CacheSystem.SetViewOperation.RemoveIfExist,
-                    FuncChildProp = value.Child != null ? () => value.Child : null
-                });
         }
     }
 
