@@ -87,12 +87,12 @@ public class GetIntColumnBench
     {
         for (long i = 0; i < Size; i++)
         {
-            int intProp;
-            _cacheSystem!.ViewInContextColumnCache((in context) =>
+            int intProp = 0;
+            _cacheSystem!.ViewInContextColumnCache((in context, ref state) =>
             {
                 _ = context.TryGetColumnCacheIntProp(i, out var propValue);
-                intProp = propValue;
-            });
+                state = propValue;
+            }, ref intProp);
         }
     }
 }
