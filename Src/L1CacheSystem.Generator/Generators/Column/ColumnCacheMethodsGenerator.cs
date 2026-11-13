@@ -22,6 +22,7 @@ namespace L1CacheSystem.Generator.Generators.Column
             PrivateVars(builder, cacheInfo);
 
             SetViewStruct(builder, cacheInfo);
+            GetViewStruct(builder, cacheInfo);
             SparseIndexStruct(builder, cacheInfo);
 
             SetFromViewMethod(builder, cacheInfo);
@@ -162,6 +163,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             }
         }
 
+        #region Set
+
         private string SetMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             return $"void Set{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} value, TimeSpan? expiry = null)";
@@ -177,7 +180,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     public {SetMethodDeclaration(keyInfo, columnInfo)}
     {{");
 
-            if (columnInfo.MetricCollectFlags.HasFlag( Enums.MetricCollectBits.SetColumnCallTime))
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetColumnCallTime))
             {
                 builder.Append(@"
         var start = _timeProvider.GetTimestamp();");
@@ -243,6 +246,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     }}
 ");
         }
+
+        #endregion
+
+        #region TryGet
 
         private string TryGetMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
@@ -310,6 +317,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     }}
 ");
         }
+
+        #endregion
+
+        #region SparseIndex
 
         private static string SparseIndexStructTypeName(string cacheName)
         {
@@ -562,6 +573,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        #endregion
+
+        #region SetViewStruct
+
         private static string SetViewStructFullTypeName(ColumnCacheInfo cacheInfo)
         {
             return $"{cacheInfo.KeyInfo.ContainsType.Name}.{SetViewStructName(cacheInfo.KeyInfo.CacheName)}";
@@ -592,6 +607,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     }}
 ");
         }
+
+        #endregion
 
         #region ViewContext
 
@@ -822,7 +839,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         }}
 
         private {keyInfo.ContainsType.Name} _source {{ get; }}
-        public readonly void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)
+        public readonly void SetFromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)
         {{
             ref {SparseIndexStructTypeName(cacheInfo.KeyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrAddDefault(_source.{VarIndexName(cacheInfo.KeyInfo)}, key, out var exists);
             if (!exists)
@@ -1021,6 +1038,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
         #endregion
 
+        #region RemoveExpired
+
         public static string RemoveExpiredMethodName(string cacheName)
         {
             return $"RemoveExpired{cacheName}";
@@ -1146,6 +1165,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
         }
 
+        #endregion
+
+        #region Delete
+
         private string DeleteColumnMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             return $"void Delete{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key)";
@@ -1238,6 +1261,54 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        #endregion
+
+        #region DeleteAll
+
+        private string DeleteMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void Delete{cacheInfo.KeyInfo.CacheName}({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key)";
+        }
+
+        private void DeleteMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {DeleteMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            if (!{VarIndexName(cacheInfo.KeyInfo)}.Remove(key, out var index))
+            {{
+                return;
+            }}");
+
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+            var column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index = index.GetIndex({i});
+            if (column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index != -1)
+            {{
+                InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index);
+            }}
+");
+            }
+
+            builder.Append($@"
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        #endregion
+
+        #region SetFromView
+
         private string SetFromViewMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
             return $"void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)";
@@ -1329,45 +1400,42 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
-        private string DeleteMethodDeclaration(ColumnCacheInfo cacheInfo)
+        #endregion
+
+        #region GetViewStruct
+
+        private static string GetViewStructFullTypeName(ColumnCacheInfo cacheInfo)
         {
-            return $"void Delete{cacheInfo.KeyInfo.CacheName}({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key)";
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{GetViewStructName(cacheInfo.KeyInfo.CacheName)}";
         }
 
-        private void DeleteMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        private static string GetViewStructName(string cacheName)
+        {
+            return $"GetView{cacheName}";
+        }
+
+        private void GetViewStruct(StringBuilder builder, ColumnCacheInfo cacheInfo)
         {
             builder.Append($@"
-    public {DeleteMethodDeclaration(cacheInfo)}
+    public ref struct {GetViewStructName(cacheInfo.KeyInfo.CacheName)}<T>
     {{
-        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
-        try
-        {{
-            if (!{VarIndexName(cacheInfo.KeyInfo)}.Remove(key, out var index))
-            {{
-                return;
-            }}");
+        public T Source {{ get; set; }}");
 
-            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            foreach (var columnInfo in cacheInfo.ColumnInfos)
             {
-                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
                 builder.Append($@"
-            var column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index = index.GetIndex({i});
-            if (column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index != -1)
-            {{
-                InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index);
-            }}
+        public GetViewOperation {columnInfo.ColumnName} {{ get; set; }}
+        public readonly Action<bool, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}, T>? Action{columnInfo.ColumnName} {{ get; init; }}
+        public readonly void Call{columnInfo.ColumnName}Action(bool exists, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} value) => Action{columnInfo.ColumnName}!(exists, value, Source);
 ");
             }
 
             builder.Append($@"
-        }}
-        finally
-        {{
-            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
-        }}
     }}
 ");
         }
+
+        #endregion
 
         private void EndClass(StringBuilder builder)
         {
