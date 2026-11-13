@@ -105,25 +105,28 @@ internal class ColumnCacheTypeTests
 
         cache.SetOneFromView(original.Id, view);
 
-        var haveValue = cache.TryGetOneId(original.Id, out var id);
-        Assert.That(haveValue, Is.True);
-        Assert.That(id, Is.EqualTo(original.Id));
-        haveValue = cache.TryGetOneId(99, out _);
-        Assert.That(haveValue, Is.False);
+        cache.ViewInContextOne((in context) =>
+        {
+            var haveValue = context.TryGetOneId(original.Id, out var id);
+            Assert.That(haveValue, Is.True);
+            Assert.That(id, Is.EqualTo(original.Id));
+            haveValue = context.TryGetOneId(99, out _);
+            Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneIntProp(original.Id, out var intProp);
-        Assert.That(haveValue, Is.True);
-        Assert.That(intProp, Is.EqualTo(original.IntProp));
-        haveValue = cache.TryGetOneIntProp(99, out _);
-        Assert.That(haveValue, Is.False);
+            haveValue = context.TryGetOneIntProp(original.Id, out var intProp);
+            Assert.That(haveValue, Is.True);
+            Assert.That(intProp, Is.EqualTo(original.IntProp));
+            haveValue = context.TryGetOneIntProp(99, out _);
+            Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneInnerClass(original.Id, out var innerClass);
-        Assert.That(haveValue, Is.True);
-        Assert.That(innerClass, Is.Not.Null);
-        Assert.That(Is.ReferenceEquals(innerClass, original.InnerClass), Is.True);
+            haveValue = context.TryGetOneInnerClass(original.Id, out var innerClass);
+            Assert.That(haveValue, Is.True);
+            Assert.That(innerClass, Is.Not.Null);
+            Assert.That(Is.ReferenceEquals(innerClass, original.InnerClass), Is.True);
 
-        haveValue = cache.TryGetOneInnerClass(99, out _);
-        Assert.That(haveValue, Is.False);
+            haveValue = context.TryGetOneInnerClass(99, out _);
+            Assert.That(haveValue, Is.False);
+        });
     }
 
     [Test]
@@ -156,14 +159,17 @@ internal class ColumnCacheTypeTests
         cache.SetOneFromView(original.Id, view);
         cache.DeleteOne(original.Id);
 
-        var haveValue = cache.TryGetOneId(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+        cache.ViewInContextOne((in context) =>
+        {
+            var haveValue = context.TryGetOneId(original.Id, out _);
+            Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneIntProp(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+            haveValue = context.TryGetOneIntProp(original.Id, out _);
+            Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneInnerClass(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+            haveValue = context.TryGetOneInnerClass(original.Id, out _);
+            Assert.That(haveValue, Is.False);
+        });
     }
 
     [Test]
@@ -196,14 +202,17 @@ internal class ColumnCacheTypeTests
         cache.SetOneFromView(original.Id, view);
         cache.DeleteOneIntProp(original.Id);
 
-        var haveValue = cache.TryGetOneId(original.Id, out _);
-        Assert.That(haveValue, Is.True);
+        cache.ViewInContextOne((in context) =>
+        {
+            var haveValue = context.TryGetOneId(original.Id, out _);
+            Assert.That(haveValue, Is.True);
 
-        haveValue = cache.TryGetOneIntProp(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+            haveValue = context.TryGetOneIntProp(original.Id, out _);
+            Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneInnerClass(original.Id, out _);
-        Assert.That(haveValue, Is.True);
+            haveValue = context.TryGetOneInnerClass(original.Id, out _);
+            Assert.That(haveValue, Is.True);
+        });
     }
 
     [Test]
@@ -240,28 +249,34 @@ internal class ColumnCacheTypeTests
 
         cache.SetOneFromView(original.Id, view);
 
-        var haveValue = cache.TryGetOneId(original.Id, out _);
-        Assert.That(haveValue, Is.True);
+        cache.ViewInContextOne((in context) =>
+        {
+            var haveValue = context.TryGetOneId(original.Id, out _);
+            Assert.That(haveValue, Is.True);
 
-        haveValue = cache.TryGetOneIntProp(original.Id, out _);
-        Assert.That(haveValue, Is.True);
+            haveValue = context.TryGetOneIntProp(original.Id, out _);
+            Assert.That(haveValue, Is.True);
 
-        haveValue = cache.TryGetOneInnerClass(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+            haveValue = context.TryGetOneInnerClass(original.Id, out _);
+            Assert.That(haveValue, Is.False);
+        });
 
         view.Id = Enums.SetViewOperation.RemoveIfExist;
         view.IntProp = Enums.SetViewOperation.None;
         view.InnerClass = Enums.SetViewOperation.None;
         cache.SetOneFromView(original.Id, view);
 
-        haveValue = cache.TryGetOneId(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+        cache.ViewInContextOne((in context) =>
+        {
+            var haveValue = context.TryGetOneId(original.Id, out _);
+            Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneIntProp(original.Id, out _);
-        Assert.That(haveValue, Is.True);
+            haveValue = context.TryGetOneIntProp(original.Id, out _);
+            Assert.That(haveValue, Is.True);
 
-        haveValue = cache.TryGetOneInnerClass(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+            haveValue = context.TryGetOneInnerClass(original.Id, out _);
+            Assert.That(haveValue, Is.False);
+        });
     }
 
     [Test]
@@ -295,33 +310,36 @@ internal class ColumnCacheTypeTests
         cache.SetOneFromView(original.Id, view, TimeSpan.FromSeconds(10));
         cache.ClearExpiredCache();
 
-        var have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.True);
+        cache.ViewInContextOne((in context) =>
+        {
+            var have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True);
 
-        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(1); // 9 remind
-        cache.ClearExpiredCache();
-        have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.True);
+            timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(1); // 9 remind
+            cache.ClearExpiredCache();
+            have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True);
 
-        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(5); // 4 remind
-        cache.ClearExpiredCache();
-        have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.True);
+            timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(5); // 4 remind
+            cache.ClearExpiredCache();
+            have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True);
 
-        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(3); // 1 remind
-        cache.ClearExpiredCache();
-        have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.True);
+            timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(3); // 1 remind
+            cache.ClearExpiredCache();
+            have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True);
 
-        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(1); // 0 remind but we live
-        cache.ClearExpiredCache();
-        have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.True);
+            timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(1); // 0 remind but we live
+            cache.ClearExpiredCache();
+            have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True);
 
-        timeProvider.FakeTime = timeProvider.FakeTime.AddMicroseconds(1); // expired
-        cache.ClearExpiredCache();
-        have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.False);
+            timeProvider.FakeTime = timeProvider.FakeTime.AddMicroseconds(1); // expired
+            cache.ClearExpiredCache();
+            have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.False);
+        });
     }
 
     #region SparseIndex tests

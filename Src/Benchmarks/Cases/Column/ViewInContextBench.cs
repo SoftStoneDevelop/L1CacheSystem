@@ -83,7 +83,7 @@ public class ViewInContextBench
     public async Task SpanIn()
     {
         var sum = 0;
-        _cacheSystem!.ViewInContextColumnCache((context) =>
+        _cacheSystem!.ViewInContextColumnCache((in context) =>
         {
             var span = context.GetIntPropSpan();
             for (int i = 0; i < span.Length; i++)
@@ -97,7 +97,7 @@ public class ViewInContextBench
     public async Task SpanIn2()
     {
         var sum = 0;
-        _cacheSystem!.ViewInContextColumnCache((context) =>
+        _cacheSystem!.ViewInContextColumnCache((in context) =>
         {
             var span = context.GetIntPropSpan();
             var interSum = 0;

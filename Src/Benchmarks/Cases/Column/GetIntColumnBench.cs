@@ -74,24 +74,25 @@ public class GetIntColumnBench
     }
 
     [Benchmark(Description = "Get Int Entity", Baseline = true)]
-    public async Task GetEntity()
+    public void GetEntity()
     {
         for (long i = 0; i < Size; i++)
         {
-#pragma warning disable IDE0059 // Unnecessary assignment of a value
             var value = _cacheSystem!.GetBitsNone(i, ReturnType.Reference)!.IntProp;
-#pragma warning restore IDE0059 // Unnecessary assignment of a value
         }
     }
 
     [Benchmark(Description = "Get Int Column")]
-    public async Task GetColumn()
+    public void GetColumn()
     {
         for (long i = 0; i < Size; i++)
         {
-#pragma warning disable IDE0059 // Unnecessary assignment of a value
-            _ = _cacheSystem!.TryGetColumnCacheIntProp(i, out var intProp);
-#pragma warning restore IDE0059 // Unnecessary assignment of a value
+            int intProp;
+            _cacheSystem!.ViewInContextColumnCache((in context) =>
+            {
+                _ = context.TryGetColumnCacheIntProp(i, out var propValue);
+                intProp = propValue;
+            });
         }
     }
 }
