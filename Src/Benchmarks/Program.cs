@@ -9,9 +9,9 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        //BenchmarkRunner.Run<GetIntColumnBench>();
+        BenchmarkRunner.Run<GetIntColumnBench>();
         //BenchmarkRunner.Run<SetViewBench>();
-        BenchmarkRunner.Run<ViewInContextBench>();
+        //BenchmarkRunner.Run<ViewInContextBench>();
         //BenchmarkRunner.Run<UpdateColumnBench>();
 
         //BenchmarkRunner.Run<GetMemoryCacheBench>();

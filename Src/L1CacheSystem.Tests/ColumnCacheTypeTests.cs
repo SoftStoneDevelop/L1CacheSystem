@@ -334,10 +334,20 @@ internal class ColumnCacheTypeTests
             cache.ClearExpiredCache();
             have = context.TryGetOneId(original.Id, out _);
             Assert.That(have, Is.True);
+        });
 
-            timeProvider.FakeTime = timeProvider.FakeTime.AddMicroseconds(1); // expired
-            cache.ClearExpiredCache();
-            have = context.TryGetOneId(original.Id, out _);
+        timeProvider.FakeTime = timeProvider.FakeTime.AddMicroseconds(1); // expired
+        cache.ViewInContextOne((in context) =>
+        {
+            var have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True); // Expired, but we're still reading—which means the cleanup can't clear anything until we're done reading.
+        });
+
+        cache.ClearExpiredCache();
+
+        cache.ViewInContextOne((in context) =>
+        {
+            var have = context.TryGetOneId(original.Id, out _);
             Assert.That(have, Is.False);
         });
     }
