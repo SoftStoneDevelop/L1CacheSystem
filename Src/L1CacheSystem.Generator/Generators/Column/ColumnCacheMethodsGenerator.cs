@@ -821,7 +821,50 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             _source = source;
         }}
 
-        private {keyInfo.ContainsType.Name} _source {{ get; }}");
+        private {keyInfo.ContainsType.Name} _source {{ get; }}
+        public readonly void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)
+        {{
+            ref {SparseIndexStructTypeName(cacheInfo.KeyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrAddDefault(_source.{VarIndexName(cacheInfo.KeyInfo)}, key, out var exists);
+            if (!exists)
+            {{
+                index = new();
+            }}
+
+            index.Expire = _source._timeProvider.GetUtcNow() + expiry;");
+
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+            if (viewInfo.{columnInfo.ColumnName} != SetViewOperation.None)
+            {{
+                var columnIndex = index.GetIndex({i});
+                if (columnIndex == -1)
+                {{
+                    if (viewInfo.{columnInfo.ColumnName} == SetViewOperation.Set)
+                    {{
+                        index.SetIndex({i}, true, _source.{VarCollectionName(cacheInfo.KeyInfo, columnInfo)}.Count);
+                        _source.{VarCollectionName(cacheInfo.KeyInfo, columnInfo)}.Add(viewInfo.Get{columnInfo.ColumnName}()!);
+                        _source.{VarCollectionReverseName(cacheInfo.KeyInfo, columnInfo)}.Add(key);
+                    }}
+                }}
+                else
+                {{
+                    if (viewInfo.{columnInfo.ColumnName} == SetViewOperation.Set)
+                    {{
+                        _source.{VarCollectionName(cacheInfo.KeyInfo, columnInfo)}[columnIndex] = viewInfo.Get{columnInfo.ColumnName}()!;
+                    }}
+                    else
+                    {{
+                        _source.InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, columnIndex);
+                    }}
+                }}
+            }}");
+            }
+
+            builder.Append($@"
+        }}
+");
 
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {

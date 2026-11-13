@@ -100,48 +100,11 @@ public class SetViewBench
             view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
             view.Child = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
 
-            _cacheSystem!.SetColumnCacheFromView(value.Id, view);
+            _cacheSystem!.SetColumnCacheFromView(value.Id, in view);
         }
     }
 
-    [Benchmark(Description = "WriteInContext")]
-    public void WriteInContext()
-    {
-        var valuesSpan = _values!.AsSpan();
-        for (int i = 0; i < valuesSpan.Length; i++)
-        {
-            var value = valuesSpan[i];
-
-            _cacheSystem!.WriteInContextColumnCache(static (in context, state) =>
-            {
-                var castValue = (ValueClass)state;
-
-                context.SetColumnCacheId(castValue.Id, castValue.Id);
-                context.SetColumnCacheIntProp(castValue.Id, castValue.IntProp);
-
-                if (castValue.DoubleProp.HasValue)
-                {
-                    context.SetColumnCacheDoubleProp(castValue.Id, castValue.DoubleProp);
-                }
-                else
-                {
-                    context.DeleteDoubleProp(castValue.Id);
-                }
-
-                if (castValue.Child != null)
-                {
-                    context.SetColumnCacheChild(castValue.Id, castValue.Child);
-                }
-                else
-                {
-                    context.DeleteChild(castValue.Id);
-                }
-            },
-            value);
-        }
-    }
-
-    [Benchmark(Description = "WriteInContext Internal")]
+    [Benchmark(Description = "WriteInContextInternal")]
     public void WriteInContextInternal()
     {
         _cacheSystem!.WriteInContextColumnCache(static (in context, state) =>
@@ -171,6 +134,36 @@ public class SetViewBench
                 {
                     context.DeleteChild(value.Id);
                 }
+            }
+        },
+        _values!);
+    }
+
+    [Benchmark(Description = "WriteInContextInternalFromView")]
+    public void WriteInContextInternalFromView()
+    {
+        _cacheSystem!.WriteInContextColumnCache(static (in context, state) =>
+        {
+            var valuesSpan = ((ValueClass[])state).AsSpan();
+            var view = new CacheSystem.SetViewColumnCache<ValueClass>
+            {
+                Id = SetViewOperation.Set,
+                FuncId = static (source) => source.Id,
+                IntProp = SetViewOperation.Set,
+                FuncIntProp = static (source) => source.IntProp,
+                FuncDoubleProp = static (source) => source.DoubleProp.HasValue ? source.DoubleProp : null,
+                FuncChild = static (source) => source.Child ?? null!
+            };
+
+            for (int i = 0; i < valuesSpan.Length; i++)
+            {
+                var value = valuesSpan[i];
+
+                view.Source = value;
+                view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+                view.Child = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+
+                context.SetColumnCacheFromView(value.Id, in view);
             }
         },
         _values!);
