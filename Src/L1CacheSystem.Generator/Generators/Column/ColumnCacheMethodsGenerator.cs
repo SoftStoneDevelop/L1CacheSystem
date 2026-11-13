@@ -30,6 +30,7 @@ namespace L1CacheSystem.Generator.Generators.Column
             ViewContextMethod(builder, cacheInfo);
             ViewContextStateMethod(builder, cacheInfo);
             ViewContextTStateMethod(builder, cacheInfo);
+            ViewContextTQStateMethod(builder, cacheInfo);
 
             DeleteMethod(builder, cacheInfo);
 
@@ -54,6 +55,7 @@ namespace L1CacheSystem.Generator.Generators.Column
             yield return ViewContextMethodDeclaration(cacheInfo);
             yield return ViewContextStateMethodDeclaration(cacheInfo);
             yield return ViewContextTStateMethodDeclaration(cacheInfo);
+            yield return ViewContextTQStateMethodDeclaration(cacheInfo);
 
             foreach (var columnInfo in cacheInfo.ColumnInfos)
             {
@@ -661,6 +663,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     public delegate void {ViewContextDelegateName(keyInfo.CacheName)}(in {ViewContextStructFullTypeName(cacheInfo)} context);
     public delegate void {ViewContextStateDelegateName(keyInfo.CacheName)}(in {ViewContextStructFullTypeName(cacheInfo)} context, object state);
     public delegate void {ViewContextStateDelegateName(keyInfo.CacheName)}<T>(in {ViewContextStructFullTypeName(cacheInfo)} context, ref T state);
+    public delegate void {ViewContextStateDelegateName(keyInfo.CacheName)}<T, Q>(in {ViewContextStructFullTypeName(cacheInfo)} context, ref T state, ref Q state2);
 ");
         }
 
@@ -727,6 +730,30 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {{
             var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
             action(in context, ref state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();
+        }}
+    }}
+");
+        }
+
+        private string ViewContextTQStateMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}<T, Q>({ViewContextStateDelegateFullTypeName(cacheInfo)}<T, Q> action, ref T state, ref Q state2)";
+        }
+
+        private void ViewContextTQStateMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {ViewContextTQStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
+        try
+        {{
+            var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state, ref state2);
         }}
         finally
         {{

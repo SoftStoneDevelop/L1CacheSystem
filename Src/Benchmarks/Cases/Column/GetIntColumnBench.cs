@@ -91,21 +91,6 @@ public class GetIntColumnBench
         }
     }
 
-    [Benchmark(Description = "Column Context TQ LF")]
-    public void ContextTQ()
-    {
-        for (long i = 0; i < Size; i++)
-        {
-            int intProp = 0;
-            _cacheSystem!.ViewInContextColumnCache(func, ref intProp, ref i);
-        }
-
-        static void func(in CacheSystem.ViewContextColumnCache context, ref int intPropRef, ref long iRef)
-        {
-            _ = context.TryGetColumnCacheIntProp(iRef, out intPropRef);
-        }
-    }
-
     [Benchmark(Description = "Column Context TQ")]
     public void ContextT()
     {
