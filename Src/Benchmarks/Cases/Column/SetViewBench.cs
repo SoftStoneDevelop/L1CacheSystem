@@ -5,7 +5,6 @@ using Benchmarks.Model;
 using L1CacheSystem.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Threading.Tasks;
 
 namespace Benchmarks.Cases.Column;
 
@@ -60,12 +59,13 @@ public class SetViewBench
         _meterFactory = null;
     }
 
-    [Benchmark(Description = "Set Entity", Baseline = true)]
-    public async Task GetEntityRef()
+    [Benchmark(Description = "SetEntity", Baseline = true)]
+    public void SetEntity()
     {
-        for (int i = 0; i < Size; i++)
+        var valuesSpan = _values!.AsSpan();
+        for (int i = 0; i < valuesSpan.Length; i++)
         {
-            var value = _values![i];
+            var value = valuesSpan[i];
             var newVal = new ValueClass()
             {
                 Id = value.Id,
@@ -78,8 +78,8 @@ public class SetViewBench
         }
     }
 
-    [Benchmark(Description = "Set View")]
-    public async Task SetViewColumn()
+    [Benchmark(Description = "SetFromView")]
+    public void SetFromView()
     {
         var view = new CacheSystem.SetViewColumnCache<ValueClass>
         {
@@ -91,9 +91,10 @@ public class SetViewBench
             FuncChild = static (source) => source.Child ?? null!
         };
 
-        for (int i = 0; i < Size; i++)
+        var valuesSpan = _values!.AsSpan();
+        for (int i = 0; i < valuesSpan.Length; i++)
         {
-            var value = _values![i];
+            var value = valuesSpan[i];
 
             view.Source = value;
             view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
@@ -101,5 +102,77 @@ public class SetViewBench
 
             _cacheSystem!.SetColumnCacheFromView(value.Id, view);
         }
+    }
+
+    [Benchmark(Description = "WriteInContext")]
+    public void WriteInContext()
+    {
+        var valuesSpan = _values!.AsSpan();
+        for (int i = 0; i < valuesSpan.Length; i++)
+        {
+            var value = valuesSpan[i];
+
+            _cacheSystem!.WriteInContextColumnCache(static (in context, state) =>
+            {
+                var castValue = (ValueClass)state;
+
+                context.SetColumnCacheId(castValue.Id, castValue.Id);
+                context.SetColumnCacheIntProp(castValue.Id, castValue.IntProp);
+
+                if (castValue.DoubleProp.HasValue)
+                {
+                    context.SetColumnCacheDoubleProp(castValue.Id, castValue.DoubleProp);
+                }
+                else
+                {
+                    context.DeleteDoubleProp(castValue.Id);
+                }
+
+                if (castValue.Child != null)
+                {
+                    context.SetColumnCacheChild(castValue.Id, castValue.Child);
+                }
+                else
+                {
+                    context.DeleteChild(castValue.Id);
+                }
+            },
+            value);
+        }
+    }
+
+    [Benchmark(Description = "WriteInContext Internal")]
+    public void WriteInContextInternal()
+    {
+        _cacheSystem!.WriteInContextColumnCache(static (in context, state) =>
+        {
+            var valuesSpan = ((ValueClass[])state).AsSpan();
+
+            for (int i = 0; i < valuesSpan.Length; i++)
+            {
+                var value = valuesSpan[i];
+                context.SetColumnCacheId(value.Id, value.Id);
+                context.SetColumnCacheIntProp(value.Id, value.IntProp);
+
+                if (value.DoubleProp.HasValue)
+                {
+                    context.SetColumnCacheDoubleProp(value.Id, value.DoubleProp);
+                }
+                else
+                {
+                    context.DeleteDoubleProp(value.Id);
+                }
+
+                if (value.Child != null)
+                {
+                    context.SetColumnCacheChild(value.Id, value.Child);
+                }
+                else
+                {
+                    context.DeleteChild(value.Id);
+                }
+            }
+        },
+        _values!);
     }
 }

@@ -23,14 +23,20 @@ namespace L1CacheSystem.Generator.Generators.Column
 
             SetViewStruct(builder, cacheInfo);
             SparseIndexStruct(builder, cacheInfo);
-            ViewContextStruct(builder, cacheInfo);
 
             SetFromViewMethod(builder, cacheInfo);
 
+            ViewContextStruct(builder, cacheInfo);
             ViewContextMethod(builder, cacheInfo);
             ViewContextStateMethod(builder, cacheInfo);
             ViewContextTStateMethod(builder, cacheInfo);
             ViewContextTQStateMethod(builder, cacheInfo);
+
+            WriteContextStruct(builder, cacheInfo);
+            WriteContextMethod(builder, cacheInfo);
+            WriteContextStateMethod(builder, cacheInfo);
+            WriteContextTStateMethod(builder, cacheInfo);
+            WriteContextTQStateMethod(builder, cacheInfo);
 
             DeleteMethod(builder, cacheInfo);
 
@@ -56,6 +62,11 @@ namespace L1CacheSystem.Generator.Generators.Column
             yield return ViewContextStateMethodDeclaration(cacheInfo);
             yield return ViewContextTStateMethodDeclaration(cacheInfo);
             yield return ViewContextTQStateMethodDeclaration(cacheInfo);
+
+            yield return WriteContextMethodDeclaration(cacheInfo);
+            yield return WriteContextStateMethodDeclaration(cacheInfo);
+            yield return WriteContextTStateMethodDeclaration(cacheInfo);
+            yield return WriteContextTQStateMethodDeclaration(cacheInfo);
 
             foreach (var columnInfo in cacheInfo.ColumnInfos)
             {
@@ -582,6 +593,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        #region ViewContext
+
         private static string ViewContextStructFullTypeName(ColumnCacheInfo cacheInfo)
         {
             return $"{cacheInfo.KeyInfo.ContainsType.Name}.{ViewContextStructName(cacheInfo.KeyInfo.CacheName)}";
@@ -762,6 +775,208 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     }}
 ");
         }
+
+        #endregion
+
+        #region WriteContext
+
+        private static string WriteContextStructFullTypeName(ColumnCacheInfo cacheInfo)
+        {
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{WriteContextStructName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
+        private static string WriteContextStructName(string cacheName)
+        {
+            return $"WriteContext{cacheName}";
+        }
+
+        private static string WriteContextDelegateFullTypeName(ColumnCacheInfo cacheInfo)
+        {
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{WriteContextDelegateName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
+        private static string WriteContextDelegateName(string cacheName)
+        {
+            return $"WriteContext{cacheName}Action";
+        }
+
+        private static string WriteContextStateDelegateFullTypeName(ColumnCacheInfo cacheInfo)
+        {
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{WriteContextStateDelegateName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
+        private static string WriteContextStateDelegateName(string cacheName)
+        {
+            return $"WriteContext{cacheName}StateAction";
+        }
+
+        private void WriteContextStruct(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            var keyInfo = cacheInfo.KeyInfo;
+            builder.Append($@"
+    public readonly struct {WriteContextStructName(keyInfo.CacheName)}
+    {{
+        public {WriteContextStructName(keyInfo.CacheName)}({keyInfo.ContainsType.Name} source)
+        {{
+            _source = source;
+        }}
+
+        private {keyInfo.ContainsType.Name} _source {{ get; }}");
+
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+        public readonly void Set{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} value, TimeSpan? expiry = null)
+        {{
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrAddDefault(_source.{VarIndexName(keyInfo)}, key, out var exists);
+            if (!exists)
+            {{
+                index = new();
+            }}
+
+            index.Expire = _source._timeProvider.GetUtcNow() + expiry;
+            var indexProp = index.GetIndex({i});
+            if (indexProp != -1)
+            {{
+                _source.{VarCollectionName(keyInfo, columnInfo)}[indexProp] = value;
+            }}
+            else
+            {{
+                index.SetIndex({i}, true, _source.{VarCollectionName(keyInfo, columnInfo)}.Count);
+                _source.{VarCollectionName(keyInfo, columnInfo)}.Add(value);
+                _source.{VarCollectionReverseName(keyInfo, columnInfo)}.Add(key);
+            }}
+        }}
+
+        public readonly void Delete{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key)
+        {{
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrNullRef(_source.{VarIndexName(keyInfo)}, key);
+            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
+            {{
+                return;
+            }}
+            else
+            {{
+                var columnIndex = index.GetIndex({i});
+                if (columnIndex == -1)
+                {{
+                    return;
+                }}
+                
+                _source.InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(ref index, columnIndex);
+            }}
+        }}
+");
+            }
+
+            builder.Append($@"
+    }}
+
+    public delegate void {WriteContextDelegateName(keyInfo.CacheName)}(in {WriteContextStructFullTypeName(cacheInfo)} context);
+    public delegate void {WriteContextStateDelegateName(keyInfo.CacheName)}(in {WriteContextStructFullTypeName(cacheInfo)} context, object state);
+    public delegate void {WriteContextStateDelegateName(keyInfo.CacheName)}<T>(in {WriteContextStructFullTypeName(cacheInfo)} context, ref T state);
+    public delegate void {WriteContextStateDelegateName(keyInfo.CacheName)}<T, Q>(in {WriteContextStructFullTypeName(cacheInfo)} context, ref T state, ref Q state2);
+");
+        }
+
+        private string WriteContextMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}({WriteContextDelegateFullTypeName(cacheInfo)} action)";
+        }
+
+        private void WriteContextMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {WriteContextMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        private string WriteContextStateMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}({WriteContextStateDelegateFullTypeName(cacheInfo)} action, object state)";
+        }
+
+        private void WriteContextStateMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {WriteContextStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        private string WriteContextTStateMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}<T>({WriteContextStateDelegateFullTypeName(cacheInfo)}<T> action, ref T state)";
+        }
+
+        private void WriteContextTStateMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {WriteContextTStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        private string WriteContextTQStateMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}<T, Q>({WriteContextStateDelegateFullTypeName(cacheInfo)}<T, Q> action, ref T state, ref Q state2)";
+        }
+
+        private void WriteContextTQStateMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {WriteContextTQStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state, ref state2);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        #endregion
 
         public static string RemoveExpiredMethodName(string cacheName)
         {
