@@ -37,6 +37,7 @@ namespace L1CacheSystem.Generator.Generators.Column
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {
                 SetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
+                TryGetMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
                 DeleteColumnMethod(builder, cacheInfo.KeyInfo, i, cacheInfo.ColumnInfos[i]);
             }
 
@@ -57,6 +58,7 @@ namespace L1CacheSystem.Generator.Generators.Column
             foreach (var columnInfo in cacheInfo.ColumnInfos)
             {
                 yield return SetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
+                yield return TryGetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
                 yield return DeleteColumnMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
             }
         }
@@ -221,6 +223,73 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             {
                 builder.Append($@"
             _metrics.SetColumnCallTime(_timeProvider.GetElapsedTime(start).TotalMicroseconds, ""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+            }
+
+            builder.Append($@"
+        }}
+    }}
+");
+        }
+
+        private string TryGetMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
+        {
+            return $"bool TryGet{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key, out {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} value)";
+        }
+
+        private void TryGetMethod(
+            StringBuilder builder,
+            KeyColumnInfo keyInfo,
+            int columnIndex,
+            ColumnInfo columnInfo)
+        {
+            builder.Append($@"
+    public {TryGetMethodDeclaration(keyInfo, columnInfo)}
+    {{");
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.TryGetCallTime))
+            {
+                builder.Append(@"
+        var start = _timeProvider.GetTimestamp();");
+            }
+
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.TryGetCallsCount))
+            {
+                builder.Append($@"
+        _metrics.TryGetColumnCallInc(""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+            }
+
+            builder.Append($@"
+        {VarSlimLockName(keyInfo)}.EnterReadLock();
+        try
+        {{
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, key);
+            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
+            {{
+                value = default!;
+                return false;
+            }}
+            else
+            {{
+                var listIndex = index.GetIndex({columnIndex});
+                if (listIndex == -1)
+                {{
+                    value = default!;
+                    return false;
+                }}
+                else
+                {{
+                    value = {VarCollectionName(keyInfo, columnInfo)}[listIndex];
+                    return true;
+                }}
+            }}
+        }}
+        finally
+        {{
+            {VarSlimLockName(keyInfo)}.ExitReadLock();");
+
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.TryGetCallTime))
+            {
+                builder.Append($@"
+            _metrics.TryGetColumnCallTime(_timeProvider.GetElapsedTime(start).TotalMicroseconds, ""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
             }
 
             builder.Append($@"

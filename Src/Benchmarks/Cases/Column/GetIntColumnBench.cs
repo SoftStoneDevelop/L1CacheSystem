@@ -5,7 +5,6 @@ using Benchmarks.Model;
 using L1CacheSystem.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Threading.Tasks;
 
 namespace Benchmarks.Cases.Column;
 
@@ -73,7 +72,7 @@ public class GetIntColumnBench
         _meterFactory = null;
     }
 
-    [Benchmark(Description = "Get Int Entity", Baseline = true)]
+    [Benchmark(Description = "Entity", Baseline = true)]
     public void GetEntity()
     {
         for (long i = 0; i < Size; i++)
@@ -82,17 +81,43 @@ public class GetIntColumnBench
         }
     }
 
-    [Benchmark(Description = "Get Int Column")]
-    public void GetColumn()
+    [Benchmark(Description = "Column TryGet")]
+    public void TryGet()
+    {
+        for (long i = 0; i < Size; i++)
+        {
+            int intProp;
+            _ = _cacheSystem!.TryGetColumnCacheIntProp(i, out intProp);
+        }
+    }
+
+    [Benchmark(Description = "Column Context TQ LF")]
+    public void ContextTQ()
     {
         for (long i = 0; i < Size; i++)
         {
             int intProp = 0;
-            _cacheSystem!.ViewInContextColumnCache((in context, ref state) =>
+            _cacheSystem!.ViewInContextColumnCache(func, ref intProp, ref i);
+        }
+
+        static void func(in CacheSystem.ViewContextColumnCache context, ref int intPropRef, ref long iRef)
+        {
+            _ = context.TryGetColumnCacheIntProp(iRef, out intPropRef);
+        }
+    }
+
+    [Benchmark(Description = "Column Context TQ")]
+    public void ContextT()
+    {
+        for (long i = 0; i < Size; i++)
+        {
+            int intProp = 0;
+            _cacheSystem!.ViewInContextColumnCache(static (in context, ref intPropRef, ref iRef) =>
             {
-                _ = context.TryGetColumnCacheIntProp(i, out var propValue);
-                state = propValue;
-            }, ref intProp);
+                _ = context.TryGetColumnCacheIntProp(iRef, out intPropRef);
+            },
+            ref intProp,
+            ref i);
         }
     }
 }

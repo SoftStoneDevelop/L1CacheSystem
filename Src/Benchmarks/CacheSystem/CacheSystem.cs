@@ -80,4 +80,20 @@ public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICach
             action(value.Value);
         }
     }
+
+    public delegate void ViewContextColumnCacheStateAction<T, Q>(in CacheSystem.ViewContextColumnCache context, ref T state, ref Q state2);
+
+    public void ViewInContextColumnCache<T, Q>(CacheSystem.ViewContextColumnCacheStateAction<T, Q> action, ref T state, ref Q state2)
+    {
+        _columnCacheSlimLock.EnterReadLock();
+        try
+        {
+            var context = new ViewContextColumnCache(this);
+            action(in context, ref state, ref state2);
+        }
+        finally
+        {
+            _columnCacheSlimLock.ExitReadLock();
+        }
+    }
 }
