@@ -79,7 +79,7 @@ namespace L1CacheSystem.Generator.Processors
             }
         }
 
-        public override void GenerateAndSaveMethods(SourceProductionContext context, CancellationToken cancellationToken)
+        public override void GenerateAndSaveMethods(SourceProductionContext context, bool allowUnsafe, CancellationToken cancellationToken)
         {
             var cacheNames = new HashSet<string>();
             foreach (var cacheInfo in _cacheInfos)
@@ -116,7 +116,7 @@ namespace L1CacheSystem.Generator.Processors
             EntityCache(builder, interfaceGeneratorParams, commonGeneratorParams, context, cancellationToken);
 
             builder.Clear();
-            ColumnCache(builder, interfaceGeneratorParams, commonGeneratorParams, context, cancellationToken);
+            ColumnCache(builder, interfaceGeneratorParams, commonGeneratorParams, context, allowUnsafe, cancellationToken);
 
             var interfaceGenerator = new CacheInterfaceGenerator();
             foreach (var interfaceGeneratorParam in interfaceGeneratorParams)
@@ -148,6 +148,7 @@ namespace L1CacheSystem.Generator.Processors
             Dictionary<INamedTypeSymbol, List<CacheInterfaceGenerator.Params>> interfaceGeneratorParams,
             List<CacheCommonMethodsGenerator.ParamsBase> commonGeneratorParams,
             SourceProductionContext context,
+            bool allowUnsafe,
             CancellationToken cancellationToken)
         {
             var cacheGenerator = new ColumnCacheMethodsGenerator();
@@ -160,6 +161,7 @@ namespace L1CacheSystem.Generator.Processors
                 builder.Clear();
                 cacheGenerator.GenerateAndSave(
                     context,
+                    allowUnsafe,
                     columnCacheInfo,
                     builder,
                     $"{_containsType.Name}");
@@ -190,7 +192,7 @@ namespace L1CacheSystem.Generator.Processors
 
                 });
 
-                foreach (var declaration in cacheGenerator.GetPublicMethodDeclarations(columnCacheInfo))
+                foreach (var declaration in cacheGenerator.GetPublicMethodDeclarations(columnCacheInfo, allowUnsafe))
                 {
                     if (!interfaceGeneratorParams.TryGetValue(columnCacheInfo.KeyInfo.InterfaceType, out var parameters))
                     {
@@ -200,7 +202,8 @@ namespace L1CacheSystem.Generator.Processors
 
                     parameters.Add(new CacheInterfaceGenerator.Params
                     {
-                        MethodDeclaration = declaration
+                        MethodDeclaration = declaration.Item1,
+                        IsUnsafeMethod = declaration.Item2,
                     });
                 }
 

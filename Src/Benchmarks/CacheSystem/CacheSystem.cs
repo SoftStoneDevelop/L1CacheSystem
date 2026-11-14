@@ -3,7 +3,6 @@ using L1CacheSystem.Attributes;
 using L1CacheSystem.Attributes.Enums;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 
 namespace Benchmarks.Backend;

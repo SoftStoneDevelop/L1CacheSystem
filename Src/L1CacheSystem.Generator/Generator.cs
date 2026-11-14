@@ -1,6 +1,7 @@
 ﻿using L1CacheSystem.Generator.Comparators;
 using L1CacheSystem.Generator.Helpers;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Immutable;
 using System.Linq;
@@ -104,7 +105,13 @@ namespace L1CacheSystem.Generator
                     context.CancellationToken);
             }
 
-            processor.GenerateAndSaveMethods(context, context.CancellationToken);
+            bool allowUnsafe = false;
+            if (compilation.Options is CSharpCompilationOptions compilationOptions)
+            {
+                allowUnsafe = compilationOptions.AllowUnsafe;
+            }
+
+            processor.GenerateAndSaveMethods(context, allowUnsafe, context.CancellationToken);
         }
     }
 }

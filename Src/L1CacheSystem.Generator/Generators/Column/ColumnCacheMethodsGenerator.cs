@@ -11,6 +11,7 @@ namespace L1CacheSystem.Generator.Generators.Column
     {
         public void GenerateAndSave(
             SourceProductionContext context,
+            bool allowUnsafe,
             ColumnCacheInfo cacheInfo,
             StringBuilder builder,
             string partName)
@@ -34,11 +35,27 @@ namespace L1CacheSystem.Generator.Generators.Column
             ViewContextTStateMethod(builder, cacheInfo);
             ViewContextTQStateMethod(builder, cacheInfo);
 
+            if (allowUnsafe)
+            {
+                ViewContextPtrMethod(builder, cacheInfo);
+                ViewContextStatePtrMethod(builder, cacheInfo);
+                ViewContextTStatePtrMethod(builder, cacheInfo);
+                ViewContextTQStatePtrMethod(builder, cacheInfo);
+            }
+
             WriteContextStruct(builder, cacheInfo);
             WriteContextMethod(builder, cacheInfo);
             WriteContextStateMethod(builder, cacheInfo);
             WriteContextTStateMethod(builder, cacheInfo);
             WriteContextTQStateMethod(builder, cacheInfo);
+
+            if (allowUnsafe)
+            {
+                WriteContextPtrMethod(builder, cacheInfo);
+                WriteContextStatePtrMethod(builder, cacheInfo);
+                WriteContextTStatePtrMethod(builder, cacheInfo);
+                WriteContextTQStatePtrMethod(builder, cacheInfo);
+            }
 
             DeleteMethod(builder, cacheInfo);
 
@@ -55,27 +72,43 @@ namespace L1CacheSystem.Generator.Generators.Column
             context.AddSource($"{partName}{cacheInfo.KeyInfo.CacheName}.g.cs", builder.ToString());
         }
 
-        public IEnumerable<string> GetPublicMethodDeclarations(ColumnCacheInfo cacheInfo)
+        public IEnumerable<(string, bool)> GetPublicMethodDeclarations(ColumnCacheInfo cacheInfo, bool allowUnsafe)
         {
-            yield return SetFromViewMethodDeclaration(cacheInfo);
-            yield return GetFromViewMethodDeclaration(cacheInfo);
-            yield return DeleteMethodDeclaration(cacheInfo);
+            yield return (SetFromViewMethodDeclaration(cacheInfo), false);
+            yield return (GetFromViewMethodDeclaration(cacheInfo), false);
+            yield return (DeleteMethodDeclaration(cacheInfo), false);
 
-            yield return ViewContextMethodDeclaration(cacheInfo);
-            yield return ViewContextStateMethodDeclaration(cacheInfo);
-            yield return ViewContextTStateMethodDeclaration(cacheInfo);
-            yield return ViewContextTQStateMethodDeclaration(cacheInfo);
+            yield return (ViewContextMethodDeclaration(cacheInfo), false);
+            yield return (ViewContextStateMethodDeclaration(cacheInfo), false);
+            yield return (ViewContextTStateMethodDeclaration(cacheInfo), false);
+            yield return (ViewContextTQStateMethodDeclaration(cacheInfo), false);
 
-            yield return WriteContextMethodDeclaration(cacheInfo);
-            yield return WriteContextStateMethodDeclaration(cacheInfo);
-            yield return WriteContextTStateMethodDeclaration(cacheInfo);
-            yield return WriteContextTQStateMethodDeclaration(cacheInfo);
+            if (allowUnsafe)
+            {
+                yield return (ViewContextPtrMethodDeclaration(cacheInfo), true);
+                yield return (ViewContextStatePtrMethodDeclaration(cacheInfo), true);
+                yield return (ViewContextTStatePtrMethodDeclaration(cacheInfo), true);
+                yield return (ViewContextTQStatePtrMethodDeclaration(cacheInfo), true);
+            }
+
+            yield return (WriteContextMethodDeclaration(cacheInfo), false);
+            yield return (WriteContextStateMethodDeclaration(cacheInfo), false);
+            yield return (WriteContextTStateMethodDeclaration(cacheInfo), false);
+            yield return (WriteContextTQStateMethodDeclaration(cacheInfo), false);
+
+            if (allowUnsafe)
+            {
+                yield return (WriteContextPtrMethodDeclaration(cacheInfo), true);
+                yield return (WriteContextStatePtrMethodDeclaration(cacheInfo), true);
+                yield return (WriteContextTStatePtrMethodDeclaration(cacheInfo), true);
+                yield return (WriteContextTQStatePtrMethodDeclaration(cacheInfo), true);
+            }
 
             foreach (var columnInfo in cacheInfo.ColumnInfos)
             {
-                yield return SetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
-                yield return TryGetMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
-                yield return DeleteColumnMethodDeclaration(cacheInfo.KeyInfo, columnInfo);
+                yield return (SetMethodDeclaration(cacheInfo.KeyInfo, columnInfo), false);
+                yield return (TryGetMethodDeclaration(cacheInfo.KeyInfo, columnInfo), false);
+                yield return (DeleteColumnMethodDeclaration(cacheInfo.KeyInfo, columnInfo), false);
             }
         }
 
@@ -765,6 +798,30 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        private string ViewContextPtrMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}(delegate*<in {ViewContextStructFullTypeName(cacheInfo)}, void> action)";
+        }
+
+        private void ViewContextPtrMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    unsafe public {ViewContextPtrMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
+        try
+        {{
+            var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();
+        }}
+    }}
+");
+        }
+
         private string ViewContextStateMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
             return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}({ViewContextStateDelegateFullTypeName(cacheInfo)} action, object state)";
@@ -774,6 +831,30 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {
             builder.Append($@"
     public {ViewContextStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
+        try
+        {{
+            var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();
+        }}
+    }}
+");
+        }
+
+        private string ViewContextStatePtrMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}(delegate*<in {ViewContextStructFullTypeName(cacheInfo)}, object, void> action, object state)";
+        }
+
+        private void ViewContextStatePtrMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    unsafe public {ViewContextStatePtrMethodDeclaration(cacheInfo)}
     {{
         {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
         try
@@ -813,6 +894,30 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        private string ViewContextTStatePtrMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}<T>(delegate*<in {ViewContextStructFullTypeName(cacheInfo)}, ref T, void> action, ref T state)";
+        }
+
+        private void ViewContextTStatePtrMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    unsafe public {ViewContextTStatePtrMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
+        try
+        {{
+            var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();
+        }}
+    }}
+");
+        }
+
         private string ViewContextTQStateMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
             return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}<T, Q>({ViewContextStateDelegateFullTypeName(cacheInfo)}<T, Q> action, ref T state, ref Q state2)";
@@ -822,6 +927,30 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {
             builder.Append($@"
     public {ViewContextTQStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
+        try
+        {{
+            var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state, ref state2);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();
+        }}
+    }}
+");
+        }
+
+        private string ViewContextTQStatePtrMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}<T, Q>(delegate*<in {ViewContextStructFullTypeName(cacheInfo)}, ref T, ref Q, void> action, ref T state, ref Q state2)";
+        }
+
+        private void ViewContextTQStatePtrMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    unsafe public {ViewContextTQStatePtrMethodDeclaration(cacheInfo)}
     {{
         {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
         try
@@ -1065,6 +1194,30 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        private string WriteContextPtrMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}(delegate*<in {WriteContextStructFullTypeName(cacheInfo)}, void> action)";
+        }
+
+        private void WriteContextPtrMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    unsafe public {WriteContextPtrMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
         private string WriteContextStateMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
             return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}({WriteContextStateDelegateFullTypeName(cacheInfo)} action, object state)";
@@ -1074,6 +1227,30 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {
             builder.Append($@"
     public {WriteContextStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        private string WriteContextStatePtrMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}(delegate*<in {WriteContextStructFullTypeName(cacheInfo)}, object, void> action, object state)";
+        }
+
+        private void WriteContextStatePtrMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    unsafe public {WriteContextStatePtrMethodDeclaration(cacheInfo)}
     {{
         {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
         try
@@ -1113,6 +1290,30 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        private string WriteContextTStatePtrMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}<T>(delegate*<in {WriteContextStructFullTypeName(cacheInfo)}, ref T, void> action, ref T state)";
+        }
+
+        private void WriteContextTStatePtrMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    unsafe public {WriteContextTStatePtrMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
         private string WriteContextTQStateMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
             return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}<T, Q>({WriteContextStateDelegateFullTypeName(cacheInfo)}<T, Q> action, ref T state, ref Q state2)";
@@ -1122,6 +1323,30 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {
             builder.Append($@"
     public {WriteContextTQStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state, ref state2);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        private string WriteContextTQStatePtrMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}<T, Q>(delegate*<in {WriteContextStructFullTypeName(cacheInfo)}, ref T, ref Q, void> action, ref T state, ref Q state2)";
+        }
+
+        private void WriteContextTQStatePtrMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    unsafe public {WriteContextTQStatePtrMethodDeclaration(cacheInfo)}
     {{
         {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
         try

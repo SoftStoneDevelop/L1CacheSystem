@@ -17,6 +17,7 @@ namespace L1CacheSystem.Generator.Processors
 
         public abstract void GenerateAndSaveMethods(
             SourceProductionContext context,
+            bool allowUnsafe,
             CancellationToken cancellationToken);
     }
 }
