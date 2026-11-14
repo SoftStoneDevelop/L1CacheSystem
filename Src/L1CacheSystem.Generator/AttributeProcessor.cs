@@ -30,9 +30,9 @@ namespace L1CacheSystem.Generator
             _l1CacheSystemProcessor.ProcessAttributes(context, attributes, compilation, containsType, cancellationToken);
         }
 
-        public void GenerateAndSaveMethods(SourceProductionContext context, CancellationToken cancellationToken)
+        public void GenerateAndSaveMethods(SourceProductionContext context, bool allowUnsafe, CancellationToken cancellationToken)
         {
-            _l1CacheSystemProcessor.GenerateAndSaveMethods(context, cancellationToken);
+            _l1CacheSystemProcessor.GenerateAndSaveMethods(context, allowUnsafe, cancellationToken);
         }
     }
 }

@@ -62,7 +62,7 @@ public partial interface {interfaceType.Name}
             foreach (var inputParam in inputParams)
             {
                 builder.Append($@"
-        {inputParam.MethodDeclaration};
+        {(inputParam.IsUnsafeMethod ? "unsafe " : "")}{inputParam.MethodDeclaration};
 ");
             }
         }
@@ -77,6 +77,7 @@ public partial interface {interfaceType.Name}
         public class Params
         {
             public string MethodDeclaration { get; set; }
+            public bool IsUnsafeMethod { get; set; } = false;
         }
     }
 }
