@@ -145,4 +145,71 @@ public class GetViewBench
         },
         copyAll);
     }
+
+    [Benchmark(Description = "Column CopyAll DirtyTrick")]
+    public void ViewCopyAllDirtyTrick()
+    {
+        var copyAll = new List<ValueClass>();
+        _cacheSystem!.ViewInContextColumnCache(static (in viewContext, state) =>
+        {
+            var keysSpan = viewContext.GetIdSpan();
+            var copyAllCast = (List<ValueClass>)state;
+            copyAllCast.Capacity = keysSpan.Length;
+
+            var getView = new CacheSystem.GetViewColumnCache<ValueClass>()
+            {
+                GetViewSourceType = GetViewSource.ByFunc,
+                FuncCreateNewSource = static (exist) =>
+                {
+                    return exist ? new ValueClass() : null!;
+                },
+
+                Id = GetViewOperation.TryGet,
+                ActionId = static (exists, value, source) =>
+                {
+                    if (exists)
+                    {
+                        source.Id = value;
+                    }
+                },
+
+                IntProp = GetViewOperation.TryGet,
+                ActionIntProp = static (exists, value, source) =>
+                {
+                    if (exists)
+                    {
+                        source.IntProp = value;
+                    }
+                },
+
+                Child = GetViewOperation.TryGet,
+                ActionChild = static (exists, value, source) =>
+                {
+                    if (exists)
+                    {
+                        source.Child = ValueClass.MakeCopy(value);
+                    }
+                },
+
+                DoubleProp = GetViewOperation.TryGet,
+                ActionDoubleProp = static (exists, value, source) =>
+                {
+                    if (exists)
+                    {
+                        source.DoubleProp = value;
+                    }
+                }
+            };
+
+            foreach (var key in keysSpan)
+            {
+                viewContext.GetFromView(key, ref getView);
+                if (getView.FuncCreateNewSourceCalled)
+                {
+                    copyAllCast.Add(getView.Source);
+                }
+            }
+        },
+        copyAll);
+    }
 }
