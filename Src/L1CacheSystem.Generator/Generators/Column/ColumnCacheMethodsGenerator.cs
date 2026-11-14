@@ -690,7 +690,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             }
 
             builder.Append($@"
-        public readonly void Get{keyInfo.CacheName}FromView<T>({keyInfo.KeyType.GetFullTypeName()} key, in {GetViewStructFullTypeName(cacheInfo)}<T> viewInfo)
+        public readonly void GetFromView<T>({keyInfo.KeyType.GetFullTypeName()} key, ref {GetViewStructFullTypeName(cacheInfo)}<T> viewInfo)
         {{
             ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrNullRef(_source.{VarIndexName(keyInfo)}, key);
             if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
@@ -882,17 +882,19 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         }}
 
         private {keyInfo.ContainsType.Name} _source {{ get; }}
-        public readonly void SetFromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)
+        public readonly {ViewContextStructFullTypeName(cacheInfo)} GetViewContext() => new {ViewContextStructFullTypeName(cacheInfo)}(_source);
+
+        public readonly void SetFromView<T>({keyInfo.KeyType.GetFullTypeName()} key, ref {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)
         {{
-            ref {SparseIndexStructTypeName(cacheInfo.KeyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrAddDefault(_source.{VarIndexName(cacheInfo.KeyInfo)}, key, out var exists);
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrAddDefault(_source.{VarIndexName(keyInfo)}, key, out var exists);
             if (!exists)
             {{
                 index = new();");
 
-            if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
+            if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
             {
                 builder.Append($@"
-                _source._metrics.IncItemsCount(""{cacheInfo.KeyInfo.CacheName}"");");
+                _source._metrics.IncItemsCount(""{keyInfo.CacheName}"");");
             }
 
             builder.Append($@"
@@ -912,9 +914,9 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                 {{
                     if (viewInfo.{columnInfo.ColumnName} == SetViewOperation.Set)
                     {{
-                        index.SetIndex({i}, true, _source.{VarCollectionName(cacheInfo.KeyInfo, columnInfo)}.Count);
-                        _source.{VarCollectionName(cacheInfo.KeyInfo, columnInfo)}.Add(viewInfo.Get{columnInfo.ColumnName}()!);
-                        _source.{VarCollectionReverseName(cacheInfo.KeyInfo, columnInfo)}.Add(key);");
+                        index.SetIndex({i}, true, _source.{VarCollectionName(keyInfo, columnInfo)}.Count);
+                        _source.{VarCollectionName(keyInfo, columnInfo)}.Add(viewInfo.Get{columnInfo.ColumnName}()!);
+                        _source.{VarCollectionReverseName(keyInfo, columnInfo)}.Add(key);");
 
                 if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ColumnsCount))
                 {
@@ -929,14 +931,36 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                 {{
                     if (viewInfo.{columnInfo.ColumnName} == SetViewOperation.Set)
                     {{
-                        _source.{VarCollectionName(cacheInfo.KeyInfo, columnInfo)}[columnIndex] = viewInfo.Get{columnInfo.ColumnName}()!;
+                        _source.{VarCollectionName(keyInfo, columnInfo)}[columnIndex] = viewInfo.Get{columnInfo.ColumnName}()!;
                     }}
                     else
                     {{
-                        _source.InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, columnIndex);
+                        _source.InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(ref index, columnIndex);
                     }}
                 }}
             }}");
+            }
+
+            builder.Append($@"
+        }}
+
+        public readonly void Delete({keyInfo.KeyType.GetFullTypeName()} key)
+        {{
+            if (!_source.{VarIndexName(cacheInfo.KeyInfo)}.Remove(key, out var index))
+            {{
+                return;
+            }}
+");
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+            var column{keyInfo.CacheName}{columnInfo.ColumnName}Index = index.GetIndex({i});
+            if (column{keyInfo.CacheName}{columnInfo.ColumnName}Index != -1)
+            {{
+                _source.InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, column{keyInfo.CacheName}{columnInfo.ColumnName}Index);
+            }}
+");
             }
 
             builder.Append($@"
@@ -973,10 +997,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             {{
                 index = new();");
 
-                if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
+                if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
                 {
                     builder.Append($@"
-                _source._metrics.IncItemsCount(""{cacheInfo.KeyInfo.CacheName}"");");
+                _source._metrics.IncItemsCount(""{keyInfo.CacheName}"");");
                 }
 
                 builder.Append($@"
@@ -1387,7 +1411,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
         private string SetFromViewMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
-            return $"void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)";
+            return $"void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, ref {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)";
         }
 
         private void SetFromViewMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
@@ -1512,7 +1536,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             FuncCreateNewSourceCalled = false;
         }}
 
-        public void ResetSource(T source)
+        public void ResetSource()
         {{
             Source = default!;
             FuncCreateNewSourceCalled = false;
@@ -1539,7 +1563,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
         private string GetFromViewMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
-            return $"void Get{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {GetViewStructFullTypeName(cacheInfo)}<T> viewInfo)";
+            return $"void Get{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, ref {GetViewStructFullTypeName(cacheInfo)}<T> viewInfo)";
         }
 
         private void GetFromViewMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
@@ -1580,6 +1604,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                 {{
                     viewInfo.CreateNewSource(true);
                 }}
+
 ");
 
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
