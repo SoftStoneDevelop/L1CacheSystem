@@ -48,6 +48,9 @@ public sealed class L1CacheSystemMetrics
     private readonly Counter<long> _setFromViewCallsCount;
     private readonly Histogram<double> _setFromViewCallTime;
 
+    private readonly Counter<long> _getFromViewCallsCount;
+    private readonly Histogram<double> _getFromViewCallTime;
+
     public L1CacheSystemMetrics(IMeterFactory meterFactory, string serviceTypeName)
     {
         _serviceTypeName = serviceTypeName;
@@ -112,6 +115,12 @@ public sealed class L1CacheSystemMetrics
         _setFromViewCallsCount = _meter.CreateCounter<long>("set_from_view_calls_count");
         _setFromViewCallTime = _meter.CreateHistogram<double>(
             "set_from_view_call_time",
+            unit: "us",
+            description: "The time taken by the method");
+
+        _getFromViewCallsCount = _meter.CreateCounter<long>("get_from_view_calls_count");
+        _getFromViewCallTime = _meter.CreateHistogram<double>(
+            "get_from_view_call_time",
             unit: "us",
             description: "The time taken by the method");
     }
@@ -373,6 +382,28 @@ public sealed class L1CacheSystemMetrics
         tags.Add(_instanceLabelTag);
         tags.Add(_cacheType, cacheTypeName);
         _setFromViewCallTime.Record(
+            microseconds,
+            tags);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void GetFromViewCallInc(string cacheTypeName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        _getFromViewCallsCount.Add(
+            1,
+            tags);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void GetFromViewCallTime(double microseconds, string cacheTypeName)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        tags.Add(_cacheType, cacheTypeName);
+        _getFromViewCallTime.Record(
             microseconds,
             tags);
     }

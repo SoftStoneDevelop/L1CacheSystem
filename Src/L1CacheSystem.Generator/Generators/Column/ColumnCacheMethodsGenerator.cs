@@ -22,11 +22,23 @@ namespace L1CacheSystem.Generator.Generators.Column
             PrivateVars(builder, cacheInfo);
 
             SetViewStruct(builder, cacheInfo);
+            GetViewStruct(builder, cacheInfo);
             SparseIndexStruct(builder, cacheInfo);
-            ViewContextStruct(builder, cacheInfo);
 
             SetFromViewMethod(builder, cacheInfo);
+            GetFromViewMethod(builder, cacheInfo);
+
+            ViewContextStruct(builder, cacheInfo);
             ViewContextMethod(builder, cacheInfo);
+            ViewContextStateMethod(builder, cacheInfo);
+            ViewContextTStateMethod(builder, cacheInfo);
+            ViewContextTQStateMethod(builder, cacheInfo);
+
+            WriteContextStruct(builder, cacheInfo);
+            WriteContextMethod(builder, cacheInfo);
+            WriteContextStateMethod(builder, cacheInfo);
+            WriteContextTStateMethod(builder, cacheInfo);
+            WriteContextTQStateMethod(builder, cacheInfo);
 
             DeleteMethod(builder, cacheInfo);
 
@@ -46,8 +58,18 @@ namespace L1CacheSystem.Generator.Generators.Column
         public IEnumerable<string> GetPublicMethodDeclarations(ColumnCacheInfo cacheInfo)
         {
             yield return SetFromViewMethodDeclaration(cacheInfo);
+            yield return GetFromViewMethodDeclaration(cacheInfo);
             yield return DeleteMethodDeclaration(cacheInfo);
+
             yield return ViewContextMethodDeclaration(cacheInfo);
+            yield return ViewContextStateMethodDeclaration(cacheInfo);
+            yield return ViewContextTStateMethodDeclaration(cacheInfo);
+            yield return ViewContextTQStateMethodDeclaration(cacheInfo);
+
+            yield return WriteContextMethodDeclaration(cacheInfo);
+            yield return WriteContextStateMethodDeclaration(cacheInfo);
+            yield return WriteContextTStateMethodDeclaration(cacheInfo);
+            yield return WriteContextTQStateMethodDeclaration(cacheInfo);
 
             foreach (var columnInfo in cacheInfo.ColumnInfos)
             {
@@ -143,6 +165,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             }
         }
 
+        #region Set
+
         private string SetMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             return $"void Set{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} value, TimeSpan? expiry = null)";
@@ -158,7 +182,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     public {SetMethodDeclaration(keyInfo, columnInfo)}
     {{");
 
-            if (columnInfo.MetricCollectFlags.HasFlag( Enums.MetricCollectBits.SetColumnCallTime))
+            if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetColumnCallTime))
             {
                 builder.Append(@"
         var start = _timeProvider.GetTimestamp();");
@@ -224,6 +248,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     }}
 ");
         }
+
+        #endregion
+
+        #region TryGet
 
         private string TryGetMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
@@ -291,6 +319,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     }}
 ");
         }
+
+        #endregion
+
+        #region SparseIndex
 
         private static string SparseIndexStructTypeName(string cacheName)
         {
@@ -543,6 +575,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        #endregion
+
+        #region SetViewStruct
+
         private static string SetViewStructFullTypeName(ColumnCacheInfo cacheInfo)
         {
             return $"{cacheInfo.KeyInfo.ContainsType.Name}.{SetViewStructName(cacheInfo.KeyInfo.CacheName)}";
@@ -574,6 +610,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        #endregion
+
+        #region ViewContext
+
         private static string ViewContextStructFullTypeName(ColumnCacheInfo cacheInfo)
         {
             return $"{cacheInfo.KeyInfo.ContainsType.Name}.{ViewContextStructName(cacheInfo.KeyInfo.CacheName)}";
@@ -584,34 +624,126 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             return $"ViewContext{cacheName}";
         }
 
+        private static string ViewContextDelegateFullTypeName(ColumnCacheInfo cacheInfo)
+        {
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{ViewContextDelegateName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
+        private static string ViewContextDelegateName(string cacheName)
+        {
+            return $"ViewContext{cacheName}Action";
+        }
+
+        private static string ViewContextStateDelegateFullTypeName(ColumnCacheInfo cacheInfo)
+        {
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{ViewContextStateDelegateName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
+        private static string ViewContextStateDelegateName(string cacheName)
+        {
+            return $"ViewContext{cacheName}StateAction";
+        }
+
         private void ViewContextStruct(StringBuilder builder, ColumnCacheInfo cacheInfo)
         {
+            var keyInfo = cacheInfo.KeyInfo;
             builder.Append($@"
-    public readonly struct {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}
+    public readonly struct {ViewContextStructName(keyInfo.CacheName)}
     {{
-        public {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}({cacheInfo.KeyInfo.ContainsType.Name} source)
+        public {ViewContextStructName(keyInfo.CacheName)}({keyInfo.ContainsType.Name} source)
         {{
             _source = source;
         }}
 
-        private {cacheInfo.KeyInfo.ContainsType.Name} _source {{ get; }}");
+        private {keyInfo.ContainsType.Name} _source {{ get; }}
+        public readonly IReadOnlyCollection<{keyInfo.KeyType.GetFullTypeName()}> GetKeys() => _source.{VarIndexName(keyInfo)}.Keys;");
 
-            foreach (var columnInfo in cacheInfo.ColumnInfos)
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
                 builder.Append($@"
-        public readonly ReadOnlySpan<{columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}> Get{columnInfo.ColumnName}Span() => CollectionsMarshal.AsSpan(_source.{VarCollectionName(cacheInfo.KeyInfo, columnInfo)});
-        public readonly ReadOnlySpan<{cacheInfo.KeyInfo.KeyType.GetFullTypeName()}> Get{columnInfo.ColumnName}ReverseKeySpan() => CollectionsMarshal.AsSpan(_source.{VarCollectionReverseName(cacheInfo.KeyInfo, columnInfo)});
+        public readonly ReadOnlySpan<{columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}> Get{columnInfo.ColumnName}Span() => CollectionsMarshal.AsSpan(_source.{VarCollectionName(keyInfo, columnInfo)});
+        public readonly ReadOnlySpan<{keyInfo.KeyType.GetFullTypeName()}> Get{columnInfo.ColumnName}ReverseKeySpan() => CollectionsMarshal.AsSpan(_source.{VarCollectionReverseName(keyInfo, columnInfo)});
+        public readonly bool TryGet{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key, out {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} value)
+        {{
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrNullRef(_source.{VarIndexName(keyInfo)}, key);
+            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
+            {{
+                value = default!;
+                return false;
+            }}
+            else
+            {{
+                var listIndex = index.GetIndex({i});
+                if (listIndex == -1)
+                {{
+                    value = default!;
+                    return false;
+                }}
+                else
+                {{
+                    value = _source.{VarCollectionName(keyInfo, columnInfo)}[listIndex];
+                    return true;
+                }}
+            }}
+        }}  
 ");
             }
 
             builder.Append($@"
+        public readonly void GetFromView<T>({keyInfo.KeyType.GetFullTypeName()} key, ref {GetViewStructFullTypeName(cacheInfo)}<T> viewInfo)
+        {{
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrNullRef(_source.{VarIndexName(keyInfo)}, key);
+            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
+            {{
+                if (viewInfo.GetViewSourceType == GetViewSource.ByFunc)
+                {{
+                    viewInfo.CreateNewSource(false);
+                }}
+
+                return;
+            }}
+            else
+            {{
+                if (viewInfo.GetViewSourceType == GetViewSource.ByFunc)
+                {{
+                    viewInfo.CreateNewSource(true);
+                }}");
+
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+                if (viewInfo.{columnInfo.ColumnName} == GetViewOperation.TryGet)
+                {{
+                    var listIndex = index.GetIndex({i});
+                    if (listIndex == -1)
+                    {{
+                        viewInfo.Call{columnInfo.ColumnName}Action(false, default!);
+                    }}
+                    else
+                    {{
+                        viewInfo.Call{columnInfo.ColumnName}Action(true, _source.{VarCollectionName(keyInfo, columnInfo)}[listIndex]);
+                    }}
+                }}
+");
+            }
+
+            builder.Append($@"
+            }}
+        }}
     }}
+
+    public delegate void {ViewContextDelegateName(keyInfo.CacheName)}(in {ViewContextStructFullTypeName(cacheInfo)} context);
+    public delegate void {ViewContextStateDelegateName(keyInfo.CacheName)}(in {ViewContextStructFullTypeName(cacheInfo)} context, object state);
+    public delegate void {ViewContextStateDelegateName(keyInfo.CacheName)}<T>(in {ViewContextStructFullTypeName(cacheInfo)} context, ref T state);
+    public delegate void {ViewContextStateDelegateName(keyInfo.CacheName)}<T, Q>(in {ViewContextStructFullTypeName(cacheInfo)} context, ref T state, ref Q state2);
 ");
         }
 
         private string ViewContextMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
-            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}(Action<{ViewContextStructFullTypeName(cacheInfo)}> action)";
+            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}({ViewContextDelegateFullTypeName(cacheInfo)} action)";
         }
 
         private void ViewContextMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
@@ -623,7 +755,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         try
         {{
             var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
-            action(context);
+            action(in context);
         }}
         finally
         {{
@@ -632,6 +764,382 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
     }}
 ");
         }
+
+        private string ViewContextStateMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}({ViewContextStateDelegateFullTypeName(cacheInfo)} action, object state)";
+        }
+
+        private void ViewContextStateMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {ViewContextStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
+        try
+        {{
+            var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();
+        }}
+    }}
+");
+        }
+
+        private string ViewContextTStateMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}<T>({ViewContextStateDelegateFullTypeName(cacheInfo)}<T> action, ref T state)";
+        }
+
+        private void ViewContextTStateMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {ViewContextTStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
+        try
+        {{
+            var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();
+        }}
+    }}
+");
+        }
+
+        private string ViewContextTQStateMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void ViewInContext{cacheInfo.KeyInfo.CacheName}<T, Q>({ViewContextStateDelegateFullTypeName(cacheInfo)}<T, Q> action, ref T state, ref Q state2)";
+        }
+
+        private void ViewContextTQStateMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {ViewContextTQStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterReadLock();
+        try
+        {{
+            var context = new {ViewContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state, ref state2);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();
+        }}
+    }}
+");
+        }
+
+        #endregion
+
+        #region WriteContext
+
+        private static string WriteContextStructFullTypeName(ColumnCacheInfo cacheInfo)
+        {
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{WriteContextStructName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
+        private static string WriteContextStructName(string cacheName)
+        {
+            return $"WriteContext{cacheName}";
+        }
+
+        private static string WriteContextDelegateFullTypeName(ColumnCacheInfo cacheInfo)
+        {
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{WriteContextDelegateName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
+        private static string WriteContextDelegateName(string cacheName)
+        {
+            return $"WriteContext{cacheName}Action";
+        }
+
+        private static string WriteContextStateDelegateFullTypeName(ColumnCacheInfo cacheInfo)
+        {
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{WriteContextStateDelegateName(cacheInfo.KeyInfo.CacheName)}";
+        }
+
+        private static string WriteContextStateDelegateName(string cacheName)
+        {
+            return $"WriteContext{cacheName}StateAction";
+        }
+
+        private void WriteContextStruct(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            var keyInfo = cacheInfo.KeyInfo;
+            builder.Append($@"
+    public readonly struct {WriteContextStructName(keyInfo.CacheName)}
+    {{
+        public {WriteContextStructName(keyInfo.CacheName)}({keyInfo.ContainsType.Name} source)
+        {{
+            _source = source;
+        }}
+
+        private {keyInfo.ContainsType.Name} _source {{ get; }}
+        public readonly {ViewContextStructFullTypeName(cacheInfo)} GetViewContext() => new {ViewContextStructFullTypeName(cacheInfo)}(_source);
+
+        public readonly void SetFromView<T>({keyInfo.KeyType.GetFullTypeName()} key, ref {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)
+        {{
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrAddDefault(_source.{VarIndexName(keyInfo)}, key, out var exists);
+            if (!exists)
+            {{
+                index = new();");
+
+            if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
+            {
+                builder.Append($@"
+                _source._metrics.IncItemsCount(""{keyInfo.CacheName}"");");
+            }
+
+            builder.Append($@"
+            }}
+
+            index.Expire = _source._timeProvider.GetUtcNow() + expiry;
+");
+
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+            if (viewInfo.{columnInfo.ColumnName} != SetViewOperation.None)
+            {{
+                var columnIndex = index.GetIndex({i});
+                if (columnIndex == -1)
+                {{
+                    if (viewInfo.{columnInfo.ColumnName} == SetViewOperation.Set)
+                    {{
+                        index.SetIndex({i}, true, _source.{VarCollectionName(keyInfo, columnInfo)}.Count);
+                        _source.{VarCollectionName(keyInfo, columnInfo)}.Add(viewInfo.Get{columnInfo.ColumnName}()!);
+                        _source.{VarCollectionReverseName(keyInfo, columnInfo)}.Add(key);");
+
+                if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ColumnsCount))
+                {
+                    builder.Append($@"
+                        _source._metrics.IncColumnsCount(""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+                }
+
+                builder.Append($@"
+                    }}
+                }}
+                else
+                {{
+                    if (viewInfo.{columnInfo.ColumnName} == SetViewOperation.Set)
+                    {{
+                        _source.{VarCollectionName(keyInfo, columnInfo)}[columnIndex] = viewInfo.Get{columnInfo.ColumnName}()!;
+                    }}
+                    else
+                    {{
+                        _source.InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(ref index, columnIndex);
+                    }}
+                }}
+            }}");
+            }
+
+            builder.Append($@"
+        }}
+
+        public readonly void Delete({keyInfo.KeyType.GetFullTypeName()} key)
+        {{
+            if (!_source.{VarIndexName(cacheInfo.KeyInfo)}.Remove(key, out var index))
+            {{
+                return;
+            }}
+");
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+            var column{keyInfo.CacheName}{columnInfo.ColumnName}Index = index.GetIndex({i});
+            if (column{keyInfo.CacheName}{columnInfo.ColumnName}Index != -1)
+            {{
+                _source.InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, column{keyInfo.CacheName}{columnInfo.ColumnName}Index);
+            }}
+");
+            }
+
+            builder.Append($@"
+        }}
+");
+
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+        public readonly void Delete{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key)
+        {{
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrNullRef(_source.{VarIndexName(keyInfo)}, key);
+            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
+            {{
+                return;
+            }}
+            else
+            {{
+                var columnIndex = index.GetIndex({i});
+                if (columnIndex == -1)
+                {{
+                    return;
+                }}
+                
+                _source.InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(ref index, columnIndex);
+            }}
+        }}");
+                builder.Append($@"
+        public readonly void Set{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} value, TimeSpan? expiry = null)
+        {{
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrAddDefault(_source.{VarIndexName(keyInfo)}, key, out var exists);
+            if (!exists)
+            {{
+                index = new();");
+
+                if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount))
+                {
+                    builder.Append($@"
+                _source._metrics.IncItemsCount(""{keyInfo.CacheName}"");");
+                }
+
+                builder.Append($@"
+            }}
+
+            index.Expire = _source._timeProvider.GetUtcNow() + expiry;
+            var indexProp = index.GetIndex({i});
+            if (indexProp != -1)
+            {{
+                _source.{VarCollectionName(keyInfo, columnInfo)}[indexProp] = value;
+            }}
+            else
+            {{
+                index.SetIndex({i}, true, _source.{VarCollectionName(keyInfo, columnInfo)}.Count);
+                _source.{VarCollectionName(keyInfo, columnInfo)}.Add(value);
+                _source.{VarCollectionReverseName(keyInfo, columnInfo)}.Add(key);");
+
+                if (columnInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ColumnsCount))
+                {
+                    builder.Append($@"
+                _source._metrics.IncColumnsCount(""{keyInfo.CacheName}"", ""{columnInfo.ColumnName}"");");
+                }
+
+                builder.Append($@"
+            }}
+        }}
+");
+            }
+
+            builder.Append($@"
+    }}
+
+    public delegate void {WriteContextDelegateName(keyInfo.CacheName)}(in {WriteContextStructFullTypeName(cacheInfo)} context);
+    public delegate void {WriteContextStateDelegateName(keyInfo.CacheName)}(in {WriteContextStructFullTypeName(cacheInfo)} context, object state);
+    public delegate void {WriteContextStateDelegateName(keyInfo.CacheName)}<T>(in {WriteContextStructFullTypeName(cacheInfo)} context, ref T state);
+    public delegate void {WriteContextStateDelegateName(keyInfo.CacheName)}<T, Q>(in {WriteContextStructFullTypeName(cacheInfo)} context, ref T state, ref Q state2);
+");
+        }
+
+        private string WriteContextMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}({WriteContextDelegateFullTypeName(cacheInfo)} action)";
+        }
+
+        private void WriteContextMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {WriteContextMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        private string WriteContextStateMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}({WriteContextStateDelegateFullTypeName(cacheInfo)} action, object state)";
+        }
+
+        private void WriteContextStateMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {WriteContextStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        private string WriteContextTStateMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}<T>({WriteContextStateDelegateFullTypeName(cacheInfo)}<T> action, ref T state)";
+        }
+
+        private void WriteContextTStateMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {WriteContextTStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        private string WriteContextTQStateMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void WriteInContext{cacheInfo.KeyInfo.CacheName}<T, Q>({WriteContextStateDelegateFullTypeName(cacheInfo)}<T, Q> action, ref T state, ref Q state2)";
+        }
+
+        private void WriteContextTQStateMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {WriteContextTQStateMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            var context = new {WriteContextStructName(cacheInfo.KeyInfo.CacheName)}(this);
+            action(in context, ref state, ref state2);
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        #endregion
+
+        #region RemoveExpired
 
         public static string RemoveExpiredMethodName(string cacheName)
         {
@@ -758,6 +1266,10 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
         }
 
+        #endregion
+
+        #region Delete
+
         private string DeleteColumnMethodDeclaration(KeyColumnInfo keyInfo, ColumnInfo columnInfo)
         {
             return $"void Delete{keyInfo.CacheName}{columnInfo.ColumnName}({keyInfo.KeyType.GetFullTypeName()} key)";
@@ -850,9 +1362,57 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
+        #endregion
+
+        #region DeleteAll
+
+        private string DeleteMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void Delete{cacheInfo.KeyInfo.CacheName}({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key)";
+        }
+
+        private void DeleteMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            builder.Append($@"
+    public {DeleteMethodDeclaration(cacheInfo)}
+    {{
+        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        try
+        {{
+            if (!{VarIndexName(cacheInfo.KeyInfo)}.Remove(key, out var index))
+            {{
+                return;
+            }}");
+
+            for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
+            {
+                ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
+                builder.Append($@"
+            var column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index = index.GetIndex({i});
+            if (column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index != -1)
+            {{
+                InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index);
+            }}
+");
+            }
+
+            builder.Append($@"
+        }}
+        finally
+        {{
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+        }}
+    }}
+");
+        }
+
+        #endregion
+
+        #region SetFromView
+
         private string SetFromViewMethodDeclaration(ColumnCacheInfo cacheInfo)
         {
-            return $"void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, in {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)";
+            return $"void Set{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, ref {SetViewStructFullTypeName(cacheInfo)}<T> viewInfo, TimeSpan? expiry = null)";
         }
 
         private void SetFromViewMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
@@ -941,45 +1501,152 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 ");
         }
 
-        private string DeleteMethodDeclaration(ColumnCacheInfo cacheInfo)
+        #endregion
+
+        #region GetViewStruct
+
+        private static string GetViewStructFullTypeName(ColumnCacheInfo cacheInfo)
         {
-            return $"void Delete{cacheInfo.KeyInfo.CacheName}({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key)";
+            return $"{cacheInfo.KeyInfo.ContainsType.Name}.{GetViewStructName(cacheInfo.KeyInfo.CacheName)}";
         }
 
-        private void DeleteMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        private static string GetViewStructName(string cacheName)
+        {
+            return $"GetView{cacheName}";
+        }
+
+        private void GetViewStruct(StringBuilder builder, ColumnCacheInfo cacheInfo)
         {
             builder.Append($@"
-    public {DeleteMethodDeclaration(cacheInfo)}
+    public ref struct {GetViewStructName(cacheInfo.KeyInfo.CacheName)}<T>
     {{
-        {VarSlimLockName(cacheInfo.KeyInfo)}.EnterWriteLock();
+        public T Source {{ get; private set; }}
+
+        public readonly GetViewSource GetViewSourceType {{ get; init; }}
+        public readonly Func<bool, T> FuncCreateNewSource {{ get; init; }}
+        public bool FuncCreateNewSourceCalled {{ get; private set; }}
+        public void CreateNewSource(bool exists)
+        {{
+            Source = FuncCreateNewSource(exists)!;
+            FuncCreateNewSourceCalled = true;
+        }}
+
+        public void SetSource(T source)
+        {{
+            Source = source!;
+            FuncCreateNewSourceCalled = false;
+        }}
+
+        public void ResetSource()
+        {{
+            Source = default!;
+            FuncCreateNewSourceCalled = false;
+        }}
+");
+
+            foreach (var columnInfo in cacheInfo.ColumnInfos)
+            {
+                builder.Append($@"
+        public GetViewOperation {columnInfo.ColumnName} {{ get; set; }}
+        public readonly Action<bool, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)}, T>? Action{columnInfo.ColumnName} {{ get; init; }}
+        public readonly void Call{columnInfo.ColumnName}Action(bool exists, {columnInfo.ColumnType.GetFullTypeName(replaceNullable: true, addQuestionNoatble: true)} value) => Action{columnInfo.ColumnName}!(exists, value, Source);
+");
+            }
+
+            builder.Append($@"
+    }}
+");
+        }
+
+        #endregion
+
+        #region GetFromView
+
+        private string GetFromViewMethodDeclaration(ColumnCacheInfo cacheInfo)
+        {
+            return $"void Get{cacheInfo.KeyInfo.CacheName}FromView<T>({cacheInfo.KeyInfo.KeyType.GetFullTypeName()} key, ref {GetViewStructFullTypeName(cacheInfo)}<T> viewInfo)";
+        }
+
+        private void GetFromViewMethod(StringBuilder builder, ColumnCacheInfo cacheInfo)
+        {
+            var keyInfo = cacheInfo.KeyInfo;
+            builder.Append($@"
+    public {GetFromViewMethodDeclaration(cacheInfo)}
+    {{");
+            if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.GetFromViewCallTime))
+            {
+                builder.Append(@"
+        var start = _timeProvider.GetTimestamp();");
+            }
+
+            if (keyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.GetFromViewCallsCount))
+            {
+                builder.Append($@"
+        _metrics.GetFromViewCallInc(""{keyInfo.CacheName}"");");
+            }
+
+            builder.Append($@"
+        {VarSlimLockName(keyInfo)}.EnterReadLock();
         try
         {{
-            if (!{VarIndexName(cacheInfo.KeyInfo)}.Remove(key, out var index))
+            ref {SparseIndexStructTypeName(keyInfo.CacheName)} index = ref CollectionsMarshal.GetValueRefOrNullRef({VarIndexName(keyInfo)}, key);
+            if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref index))
             {{
+                if (viewInfo.GetViewSourceType == GetViewSource.ByFunc)
+                {{
+                    viewInfo.CreateNewSource(false);
+                }}
+
                 return;
-            }}");
+            }}
+            else
+            {{
+                if (viewInfo.GetViewSourceType == GetViewSource.ByFunc)
+                {{
+                    viewInfo.CreateNewSource(true);
+                }}
+
+");
 
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {
                 ColumnInfo columnInfo = cacheInfo.ColumnInfos[i];
                 builder.Append($@"
-            var column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index = index.GetIndex({i});
-            if (column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index != -1)
-            {{
-                InternalDelete{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}(ref index, column{cacheInfo.KeyInfo.CacheName}{columnInfo.ColumnName}Index);
-            }}
+                if (viewInfo.{columnInfo.ColumnName} == GetViewOperation.TryGet)
+                {{
+                    var listIndex = index.GetIndex({i});
+                    if (listIndex == -1)
+                    {{
+                        viewInfo.Call{columnInfo.ColumnName}Action(false, default!);
+                    }}
+                    else
+                    {{
+                        viewInfo.Call{columnInfo.ColumnName}Action(true, {VarCollectionName(keyInfo, columnInfo)}[listIndex]);
+                    }}
+                }}
 ");
             }
 
             builder.Append($@"
+            }}
         }}
         finally
         {{
-            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();");
+
+            if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetFromViewCallTime))
+            {
+                builder.Append($@"
+            _metrics.GetFromViewCallTime(_timeProvider.GetElapsedTime(start).TotalMicroseconds, ""{cacheInfo.KeyInfo.CacheName}"");");
+            }
+
+            builder.Append($@"
         }}
     }}
 ");
         }
+
+        #endregion
 
         private void EndClass(StringBuilder builder)
         {

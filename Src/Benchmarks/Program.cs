@@ -7,11 +7,12 @@ namespace Benchmarks;
 
 internal class Program
 {
-    static void Main(string[] args)
+    static void Main()
     {
         //BenchmarkRunner.Run<GetIntColumnBench>();
         //BenchmarkRunner.Run<SetViewBench>();
-        BenchmarkRunner.Run<ViewInContextBench>();
+        BenchmarkRunner.Run<GetViewBench>();
+        //BenchmarkRunner.Run<ViewInContextBench>();
         //BenchmarkRunner.Run<UpdateColumnBench>();
 
         //BenchmarkRunner.Run<GetMemoryCacheBench>();

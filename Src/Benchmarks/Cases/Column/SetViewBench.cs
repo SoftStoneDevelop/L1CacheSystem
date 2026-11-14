@@ -5,7 +5,6 @@ using Benchmarks.Model;
 using L1CacheSystem.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Threading.Tasks;
 
 namespace Benchmarks.Cases.Column;
 
@@ -60,12 +59,13 @@ public class SetViewBench
         _meterFactory = null;
     }
 
-    [Benchmark(Description = "Set Entity", Baseline = true)]
-    public async Task GetEntityRef()
+    [Benchmark(Description = "SetEntity", Baseline = true)]
+    public void SetEntity()
     {
-        for (int i = 0; i < Size; i++)
+        var valuesSpan = _values!.AsSpan();
+        for (int i = 0; i < valuesSpan.Length; i++)
         {
-            var value = _values![i];
+            var value = valuesSpan[i];
             var newVal = new ValueClass()
             {
                 Id = value.Id,
@@ -78,8 +78,8 @@ public class SetViewBench
         }
     }
 
-    [Benchmark(Description = "Set View")]
-    public async Task SetViewColumn()
+    [Benchmark(Description = "SetFromView")]
+    public void SetFromView()
     {
         var view = new CacheSystem.SetViewColumnCache<ValueClass>
         {
@@ -91,15 +91,81 @@ public class SetViewBench
             FuncChild = static (source) => source.Child ?? null!
         };
 
-        for (int i = 0; i < Size; i++)
+        var valuesSpan = _values!.AsSpan();
+        for (int i = 0; i < valuesSpan.Length; i++)
         {
-            var value = _values![i];
+            var value = valuesSpan[i];
 
             view.Source = value;
             view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
             view.Child = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
 
-            _cacheSystem!.SetColumnCacheFromView(value.Id, view);
+            _cacheSystem!.SetColumnCacheFromView(value.Id, ref view);
         }
+    }
+
+    [Benchmark(Description = "WriteInContextInternal")]
+    public void WriteInContextInternal()
+    {
+        _cacheSystem!.WriteInContextColumnCache(static (in context, state) =>
+        {
+            var valuesSpan = ((ValueClass[])state).AsSpan();
+
+            for (int i = 0; i < valuesSpan.Length; i++)
+            {
+                var value = valuesSpan[i];
+                context.SetColumnCacheId(value.Id, value.Id);
+                context.SetColumnCacheIntProp(value.Id, value.IntProp);
+
+                if (value.DoubleProp.HasValue)
+                {
+                    context.SetColumnCacheDoubleProp(value.Id, value.DoubleProp);
+                }
+                else
+                {
+                    context.DeleteDoubleProp(value.Id);
+                }
+
+                if (value.Child != null)
+                {
+                    context.SetColumnCacheChild(value.Id, value.Child);
+                }
+                else
+                {
+                    context.DeleteChild(value.Id);
+                }
+            }
+        },
+        _values!);
+    }
+
+    [Benchmark(Description = "WriteInContextInternalFromView")]
+    public void WriteInContextInternalFromView()
+    {
+        _cacheSystem!.WriteInContextColumnCache(static (in context, state) =>
+        {
+            var valuesSpan = ((ValueClass[])state).AsSpan();
+            var view = new CacheSystem.SetViewColumnCache<ValueClass>
+            {
+                Id = SetViewOperation.Set,
+                FuncId = static (source) => source.Id,
+                IntProp = SetViewOperation.Set,
+                FuncIntProp = static (source) => source.IntProp,
+                FuncDoubleProp = static (source) => source.DoubleProp.HasValue ? source.DoubleProp : null,
+                FuncChild = static (source) => source.Child ?? null!
+            };
+
+            for (int i = 0; i < valuesSpan.Length; i++)
+            {
+                var value = valuesSpan[i];
+
+                view.Source = value;
+                view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+                view.Child = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
+
+                context.SetFromView(value.Id, ref view);
+            }
+        },
+        _values!);
     }
 }

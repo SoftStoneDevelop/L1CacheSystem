@@ -75,7 +75,9 @@ public sealed partial class TestCacheSystemColumn : L1CacheSystemBase, IL1CacheS
 internal class ColumnCacheTypeTests
 {
     [Test]
-    public void TestSetRead()
+    [TestCase(false, TestName = "SetRead FromCache")]
+    [TestCase(true, TestName = "SetRead FromContext")]
+    public void TestSetFromView(bool fromContext)
     {
         var factory = new FakeMeterFactory();
         var cache = new TestCacheSystemColumn(NullLogger.Instance, TimeProvider.System, factory);
@@ -91,43 +93,248 @@ internal class ColumnCacheTypeTests
             }
         };
 
-        var view = new TestCacheSystemColumn.SetViewOne<TestClass>()
+        if (fromContext)
         {
-            Id = Enums.SetViewOperation.Set,
-            FuncId = static (source) => source.Id,
-            IntProp = Enums.SetViewOperation.Set,
-            FuncIntProp = static (source) => source.IntProp,
-            InnerClass = Enums.SetViewOperation.Set,
-            FuncInnerClass = static (source) => source.InnerClass!
-        };
+            cache.WriteInContextOne(static (in context, state) =>
+            {
+                var viewContext = context.GetViewContext();
+                var view = new TestCacheSystemColumn.SetViewOne<TestClass>()
+                {
+                    Id = Enums.SetViewOperation.Set,
+                    FuncId = static (source) => source.Id,
+                    IntProp = Enums.SetViewOperation.Set,
+                    FuncIntProp = static (source) => source.IntProp,
+                    InnerClass = Enums.SetViewOperation.Set,
+                    FuncInnerClass = static (source) => source.InnerClass!
+                };
 
-        view.Source = original;
+                view.Source = (TestClass)state;
 
-        cache.SetOneFromView(original.Id, view);
+                context.SetFromView(view.Source.Id, ref view);
 
-        var haveValue = cache.TryGetOneId(original.Id, out var id);
-        Assert.That(haveValue, Is.True);
-        Assert.That(id, Is.EqualTo(original.Id));
-        haveValue = cache.TryGetOneId(99, out _);
-        Assert.That(haveValue, Is.False);
+                var haveValue = viewContext.TryGetOneId(view.Source.Id, out var id);
+                Assert.That(haveValue, Is.True);
+                Assert.That(id, Is.EqualTo(view.Source.Id));
+                haveValue = viewContext.TryGetOneId(99, out _);
+                Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneIntProp(original.Id, out var intProp);
-        Assert.That(haveValue, Is.True);
-        Assert.That(intProp, Is.EqualTo(original.IntProp));
-        haveValue = cache.TryGetOneIntProp(99, out _);
-        Assert.That(haveValue, Is.False);
+                haveValue = viewContext.TryGetOneIntProp(view.Source.Id, out var intProp);
+                Assert.That(haveValue, Is.True);
+                Assert.That(intProp, Is.EqualTo(view.Source.IntProp));
+                haveValue = viewContext.TryGetOneIntProp(99, out _);
+                Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneInnerClass(original.Id, out var innerClass);
-        Assert.That(haveValue, Is.True);
-        Assert.That(innerClass, Is.Not.Null);
-        Assert.That(Is.ReferenceEquals(innerClass, original.InnerClass), Is.True);
+                haveValue = viewContext.TryGetOneInnerClass(view.Source.Id, out var innerClass);
+                Assert.That(haveValue, Is.True);
+                Assert.That(innerClass, Is.Not.Null);
+                Assert.That(Is.ReferenceEquals(innerClass, view.Source.InnerClass), Is.True);
 
-        haveValue = cache.TryGetOneInnerClass(99, out _);
-        Assert.That(haveValue, Is.False);
+                haveValue = viewContext.TryGetOneInnerClass(99, out _);
+                Assert.That(haveValue, Is.False);
+            },
+            original);
+        }
+        else
+        {
+            var view = new TestCacheSystemColumn.SetViewOne<TestClass>()
+            {
+                Id = Enums.SetViewOperation.Set,
+                FuncId = static (source) => source.Id,
+                IntProp = Enums.SetViewOperation.Set,
+                FuncIntProp = static (source) => source.IntProp,
+                InnerClass = Enums.SetViewOperation.Set,
+                FuncInnerClass = static (source) => source.InnerClass!
+            };
+
+            view.Source = original;
+
+            cache.SetOneFromView(original.Id, ref view);
+
+            var haveValue = cache.TryGetOneId(original.Id, out var id);
+            Assert.That(haveValue, Is.True);
+            Assert.That(id, Is.EqualTo(original.Id));
+            haveValue = cache.TryGetOneId(99, out _);
+            Assert.That(haveValue, Is.False);
+
+            haveValue = cache.TryGetOneIntProp(original.Id, out var intProp);
+            Assert.That(haveValue, Is.True);
+            Assert.That(intProp, Is.EqualTo(original.IntProp));
+            haveValue = cache.TryGetOneIntProp(99, out _);
+            Assert.That(haveValue, Is.False);
+
+            haveValue = cache.TryGetOneInnerClass(original.Id, out var innerClass);
+            Assert.That(haveValue, Is.True);
+            Assert.That(innerClass, Is.Not.Null);
+            Assert.That(Is.ReferenceEquals(innerClass, original.InnerClass), Is.True);
+
+            haveValue = cache.TryGetOneInnerClass(99, out _);
+            Assert.That(haveValue, Is.False);
+        }
     }
 
     [Test]
-    public void TestDelete()
+    [TestCase(false, TestName = "GetFromView FromCache")]
+    [TestCase(true, TestName = "GetFromView FromContext")]
+    public void TestGetFromView(bool fromContext)
+    {
+        var factory = new FakeMeterFactory();
+        var cache = new TestCacheSystemColumn(NullLogger.Instance, TimeProvider.System, factory);
+        IL1CacheSystemColumn icache = cache;
+
+        var original = new TestClass()
+        {
+            Id = 12,
+            IntProp = 19,
+            InnerClass = new InnerTestClass()
+            {
+                IntProp = 44
+            }
+        };
+
+        if (fromContext)
+        {
+            cache.WriteInContextOne(static (in context, state) =>
+            {
+                var viewContext = context.GetViewContext();
+                var setView = new TestCacheSystemColumn.SetViewOne<TestClass>()
+                {
+                    Id = Enums.SetViewOperation.Set,
+                    FuncId = static (source) => source.Id,
+                    IntProp = Enums.SetViewOperation.Set,
+                    FuncIntProp = static (source) => source.IntProp,
+                    InnerClass = Enums.SetViewOperation.Set,
+                    FuncInnerClass = static (source) => source.InnerClass!
+                };
+
+                var originalCast = (TestClass)state;
+                setView.Source = originalCast;
+
+                context.SetFromView(originalCast.Id, ref setView);
+
+                var getView = new TestCacheSystemColumn.GetViewOne<TestClass>()
+                {
+                    GetViewSourceType = Enums.GetViewSource.ByFunc,
+                    FuncCreateNewSource = static (exist) =>
+                    {
+                        return exist ? new TestClass() : null!;
+                    },
+
+                    Id = Enums.GetViewOperation.TryGet,
+                    ActionId = static (exists, value, source) =>
+                    {
+                        if (exists)
+                        {
+                            source.Id = value;
+                        }
+                    },
+
+                    IntProp = Enums.GetViewOperation.TryGet,
+                    ActionIntProp = static (exists, value, source) =>
+                    {
+                        if (exists)
+                        {
+                            source.IntProp = value;
+                        }
+                    },
+
+                    InnerClass = Enums.GetViewOperation.TryGet,
+                    ActionInnerClass = static (exists, value, source) =>
+                    {
+                        if (exists)
+                        {
+                            source.InnerClass = value;
+                        }
+                    },
+                };
+
+                viewContext.GetFromView(originalCast.Id, ref getView);
+
+                var getResult = getView.Source;
+                getView.ResetSource();
+
+                Assert.That(getResult, Is.Not.Null);
+                Assert.That(Is.ReferenceEquals(getResult, originalCast), Is.False);
+
+                Assert.That(getResult.Id, Is.EqualTo(originalCast.Id));
+                Assert.That(getResult.IntProp, Is.EqualTo(originalCast.IntProp));
+
+                Assert.That(getResult.InnerClass, Is.Not.Null);
+                Assert.That(Is.ReferenceEquals(getResult.InnerClass, originalCast.InnerClass), Is.True);
+            },
+            original);
+        }
+        else
+        {
+            var setView = new TestCacheSystemColumn.SetViewOne<TestClass>()
+            {
+                Id = Enums.SetViewOperation.Set,
+                FuncId = static (source) => source.Id,
+                IntProp = Enums.SetViewOperation.Set,
+                FuncIntProp = static (source) => source.IntProp,
+                InnerClass = Enums.SetViewOperation.Set,
+                FuncInnerClass = static (source) => source.InnerClass!
+            };
+
+            setView.Source = original;
+
+            cache.SetOneFromView(original.Id, ref setView);
+
+            var getView = new TestCacheSystemColumn.GetViewOne<TestClass>()
+            {
+                GetViewSourceType = Enums.GetViewSource.ByFunc,
+                FuncCreateNewSource = static (exist) =>
+                {
+                    return exist ? new TestClass() : null!;
+                },
+
+                Id = Enums.GetViewOperation.TryGet,
+                ActionId = static (exists, value, source) =>
+                {
+                    if (exists)
+                    {
+                        source.Id = value;
+                    }
+                },
+
+                IntProp = Enums.GetViewOperation.TryGet,
+                ActionIntProp = static (exists, value, source) =>
+                {
+                    if (exists)
+                    {
+                        source.IntProp = value;
+                    }
+                },
+
+                InnerClass = Enums.GetViewOperation.TryGet,
+                ActionInnerClass = static (exists, value, source) =>
+                {
+                    if (exists)
+                    {
+                        source.InnerClass = value;
+                    }
+                },
+            };
+
+            cache.GetOneFromView(original.Id, ref getView);
+
+            var getResult = getView.Source;
+            getView.ResetSource();
+
+            Assert.That(getResult, Is.Not.Null);
+            Assert.That(Is.ReferenceEquals(getResult, original), Is.False);
+
+            Assert.That(getResult.Id, Is.EqualTo(original.Id));
+            Assert.That(getResult.IntProp, Is.EqualTo(original.IntProp));
+
+            Assert.That(getResult.InnerClass, Is.Not.Null);
+            Assert.That(Is.ReferenceEquals(getResult.InnerClass, original.InnerClass), Is.True);
+        }
+    }
+
+    [Test]
+    [TestCase(false, TestName = "Delete FromCache")]
+    [TestCase(true, TestName = "Delete FromContext")]
+    public void TestDelete(bool fromContext)
     {
         var factory = new FakeMeterFactory();
         var cache = new TestCacheSystemColumn(NullLogger.Instance, TimeProvider.System, factory);
@@ -142,32 +349,67 @@ internal class ColumnCacheTypeTests
             }
         };
 
-        var view = new TestCacheSystemColumn.SetViewOne<TestClass>()
+        if (fromContext)
         {
-            Id = Enums.SetViewOperation.Set,
-            FuncId = static (source) => source.Id,
-            IntProp = Enums.SetViewOperation.Set,
-            FuncIntProp = static (source) => source.IntProp,
-            InnerClass = Enums.SetViewOperation.Set,
-            FuncInnerClass = static (source) => source.InnerClass!
-        };
-        view.Source = original;
+            cache.WriteInContextOne(static (in writeContext, state) =>
+            {
+                var viewContext = writeContext.GetViewContext();
+                var view = new TestCacheSystemColumn.SetViewOne<TestClass>()
+                {
+                    Id = Enums.SetViewOperation.Set,
+                    FuncId = static (source) => source.Id,
+                    IntProp = Enums.SetViewOperation.Set,
+                    FuncIntProp = static (source) => source.IntProp,
+                    InnerClass = Enums.SetViewOperation.Set,
+                    FuncInnerClass = static (source) => source.InnerClass!
+                };
+                view.Source = (TestClass)state;
+                writeContext.SetFromView(view.Source.Id, ref view);
 
-        cache.SetOneFromView(original.Id, view);
-        cache.DeleteOne(original.Id);
+                writeContext.Delete(view.Source.Id);
 
-        var haveValue = cache.TryGetOneId(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+                var haveValue = viewContext.TryGetOneId(view.Source.Id, out _);
+                Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneIntProp(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+                haveValue = viewContext.TryGetOneIntProp(view.Source.Id, out _);
+                Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneInnerClass(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+                haveValue = viewContext.TryGetOneInnerClass(view.Source.Id, out _);
+                Assert.That(haveValue, Is.False);
+            },
+            original);
+        }
+        else
+        {
+            var view = new TestCacheSystemColumn.SetViewOne<TestClass>()
+            {
+                Id = Enums.SetViewOperation.Set,
+                FuncId = static (source) => source.Id,
+                IntProp = Enums.SetViewOperation.Set,
+                FuncIntProp = static (source) => source.IntProp,
+                InnerClass = Enums.SetViewOperation.Set,
+                FuncInnerClass = static (source) => source.InnerClass!
+            };
+            view.Source = original;
+
+            cache.SetOneFromView(original.Id, ref view);
+            cache.DeleteOne(original.Id);
+
+            var haveValue = cache.TryGetOneId(original.Id, out _);
+            Assert.That(haveValue, Is.False);
+
+            haveValue = cache.TryGetOneIntProp(original.Id, out _);
+            Assert.That(haveValue, Is.False);
+
+            haveValue = cache.TryGetOneInnerClass(original.Id, out _);
+            Assert.That(haveValue, Is.False);
+        }
     }
 
     [Test]
-    public void TestDeleteColumn()
+    [TestCase(false, TestName = "DeleteColumn FromCache")]
+    [TestCase(true, TestName = "DeleteColumn FromContext")]
+    public void TestDeleteColumn(bool fromContext)
     {
         var factory = new FakeMeterFactory();
         var cache = new TestCacheSystemColumn(NullLogger.Instance, TimeProvider.System, factory);
@@ -182,28 +424,62 @@ internal class ColumnCacheTypeTests
             }
         };
 
-        var view = new TestCacheSystemColumn.SetViewOne<TestClass>()
+        if (fromContext)
         {
-            Id = Enums.SetViewOperation.Set,
-            FuncId = static (source) => source.Id,
-            IntProp = Enums.SetViewOperation.Set,
-            FuncIntProp = static (source) => source.IntProp,
-            InnerClass = Enums.SetViewOperation.Set,
-            FuncInnerClass = static (source) => source.InnerClass!
-        };
-        view.Source = original;
+            cache.WriteInContextOne(static (in writeContext, state) =>
+            {
+                var viewContext = writeContext.GetViewContext();
+                var view = new TestCacheSystemColumn.SetViewOne<TestClass>()
+                {
+                    Id = Enums.SetViewOperation.Set,
+                    FuncId = static (source) => source.Id,
+                    IntProp = Enums.SetViewOperation.Set,
+                    FuncIntProp = static (source) => source.IntProp,
+                    InnerClass = Enums.SetViewOperation.Set,
+                    FuncInnerClass = static (source) => source.InnerClass!
+                };
 
-        cache.SetOneFromView(original.Id, view);
-        cache.DeleteOneIntProp(original.Id);
+                view.Source = (TestClass)state;
+                writeContext.SetFromView(view.Source.Id, ref view);
 
-        var haveValue = cache.TryGetOneId(original.Id, out _);
-        Assert.That(haveValue, Is.True);
+                writeContext.DeleteIntProp(view.Source.Id);
 
-        haveValue = cache.TryGetOneIntProp(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+                var haveValue = viewContext.TryGetOneId(view.Source.Id, out _);
+                Assert.That(haveValue, Is.True);
 
-        haveValue = cache.TryGetOneInnerClass(original.Id, out _);
-        Assert.That(haveValue, Is.True);
+                haveValue = viewContext.TryGetOneIntProp(view.Source.Id, out _);
+                Assert.That(haveValue, Is.False);
+
+                haveValue = viewContext.TryGetOneInnerClass(view.Source.Id, out _);
+                Assert.That(haveValue, Is.True);
+            },
+            original);
+        }
+        else
+        {
+            var view = new TestCacheSystemColumn.SetViewOne<TestClass>()
+            {
+                Id = Enums.SetViewOperation.Set,
+                FuncId = static (source) => source.Id,
+                IntProp = Enums.SetViewOperation.Set,
+                FuncIntProp = static (source) => source.IntProp,
+                InnerClass = Enums.SetViewOperation.Set,
+                FuncInnerClass = static (source) => source.InnerClass!
+            };
+            view.Source = original;
+
+            cache.SetOneFromView(original.Id, ref view);
+            cache.DeleteOneIntProp(original.Id);
+
+            var haveValue = cache.TryGetOneId(original.Id, out _);
+            Assert.That(haveValue, Is.True);
+
+            haveValue = cache.TryGetOneIntProp(original.Id, out _);
+            Assert.That(haveValue, Is.False);
+
+            haveValue = cache.TryGetOneInnerClass(original.Id, out _);
+            Assert.That(haveValue, Is.True);
+        }
     }
 
     [Test]
@@ -233,35 +509,41 @@ internal class ColumnCacheTypeTests
         };
         view.Source = original;
 
-        cache.SetOneFromView(original.Id, view);
+        cache.SetOneFromView(original.Id, ref view);
 
         original.InnerClass = null;
         view.InnerClass = original.InnerClass == null ? Enums.SetViewOperation.RemoveIfExist : Enums.SetViewOperation.Set;
 
-        cache.SetOneFromView(original.Id, view);
+        cache.SetOneFromView(original.Id, ref view);
 
-        var haveValue = cache.TryGetOneId(original.Id, out _);
-        Assert.That(haveValue, Is.True);
+        cache.ViewInContextOne((in context) =>
+        {
+            var haveValue = context.TryGetOneId(original.Id, out _);
+            Assert.That(haveValue, Is.True);
 
-        haveValue = cache.TryGetOneIntProp(original.Id, out _);
-        Assert.That(haveValue, Is.True);
+            haveValue = context.TryGetOneIntProp(original.Id, out _);
+            Assert.That(haveValue, Is.True);
 
-        haveValue = cache.TryGetOneInnerClass(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+            haveValue = context.TryGetOneInnerClass(original.Id, out _);
+            Assert.That(haveValue, Is.False);
+        });
 
         view.Id = Enums.SetViewOperation.RemoveIfExist;
         view.IntProp = Enums.SetViewOperation.None;
         view.InnerClass = Enums.SetViewOperation.None;
-        cache.SetOneFromView(original.Id, view);
+        cache.SetOneFromView(original.Id, ref view);
 
-        haveValue = cache.TryGetOneId(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+        cache.ViewInContextOne((in context) =>
+        {
+            var haveValue = context.TryGetOneId(original.Id, out _);
+            Assert.That(haveValue, Is.False);
 
-        haveValue = cache.TryGetOneIntProp(original.Id, out _);
-        Assert.That(haveValue, Is.True);
+            haveValue = context.TryGetOneIntProp(original.Id, out _);
+            Assert.That(haveValue, Is.True);
 
-        haveValue = cache.TryGetOneInnerClass(original.Id, out _);
-        Assert.That(haveValue, Is.False);
+            haveValue = context.TryGetOneInnerClass(original.Id, out _);
+            Assert.That(haveValue, Is.False);
+        });
     }
 
     [Test]
@@ -292,36 +574,49 @@ internal class ColumnCacheTypeTests
         };
         view.Source = original;
 
-        cache.SetOneFromView(original.Id, view, TimeSpan.FromSeconds(10));
+        cache.SetOneFromView(original.Id, ref view, TimeSpan.FromSeconds(10));
         cache.ClearExpiredCache();
 
-        var have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.True);
+        cache.ViewInContextOne((in context) =>
+        {
+            var have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True);
 
-        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(1); // 9 remind
-        cache.ClearExpiredCache();
-        have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.True);
+            timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(1); // 9 remind
+            cache.ClearExpiredCache();
+            have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True);
 
-        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(5); // 4 remind
-        cache.ClearExpiredCache();
-        have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.True);
+            timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(5); // 4 remind
+            cache.ClearExpiredCache();
+            have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True);
 
-        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(3); // 1 remind
-        cache.ClearExpiredCache();
-        have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.True);
+            timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(3); // 1 remind
+            cache.ClearExpiredCache();
+            have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True);
 
-        timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(1); // 0 remind but we live
-        cache.ClearExpiredCache();
-        have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.True);
+            timeProvider.FakeTime = timeProvider.FakeTime.AddSeconds(1); // 0 remind but we live
+            cache.ClearExpiredCache();
+            have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True);
+        });
 
         timeProvider.FakeTime = timeProvider.FakeTime.AddMicroseconds(1); // expired
+        cache.ViewInContextOne((in context) =>
+        {
+            var have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.True); // Expired, but we're still reading—which means the cleanup can't clear anything until we're done reading.
+        });
+
         cache.ClearExpiredCache();
-        have = cache.TryGetOneId(original.Id, out _);
-        Assert.That(have, Is.False);
+
+        cache.ViewInContextOne((in context) =>
+        {
+            var have = context.TryGetOneId(original.Id, out _);
+            Assert.That(have, Is.False);
+        });
     }
 
     #region SparseIndex tests

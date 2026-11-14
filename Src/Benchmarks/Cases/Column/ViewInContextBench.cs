@@ -59,7 +59,7 @@ public class ViewInContextBench
             view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
             view.Child = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
 
-            _cacheSystem!.SetColumnCacheFromView(value.Id, view);
+            _cacheSystem!.SetColumnCacheFromView(value.Id, ref view);
             _cacheSystem.SetBitsNone(value, ValueOwnership.Transferred);
         }
     }
@@ -83,7 +83,7 @@ public class ViewInContextBench
     public async Task SpanIn()
     {
         var sum = 0;
-        _cacheSystem!.ViewInContextColumnCache((context) =>
+        _cacheSystem!.ViewInContextColumnCache((in context) =>
         {
             var span = context.GetIntPropSpan();
             for (int i = 0; i < span.Length; i++)
@@ -97,7 +97,7 @@ public class ViewInContextBench
     public async Task SpanIn2()
     {
         var sum = 0;
-        _cacheSystem!.ViewInContextColumnCache((context) =>
+        _cacheSystem!.ViewInContextColumnCache((in context) =>
         {
             var span = context.GetIntPropSpan();
             var interSum = 0;

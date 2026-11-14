@@ -103,14 +103,14 @@ namespace L1CacheSystem.Generator.Enums
         SetFromViewCallTime = 1 << 11,
 
         /// <summary>
-        /// Number of calls to the GetIntoView method
+        /// Number of calls to the GetFromView method
         /// </summary>
-        GetIntoViewCallsCount = 1 << 12,
+        GetFromViewCallsCount = 1 << 12,
 
         /// <summary>
-        /// The time taken for the GetIntoView method call to execute
+        /// The time taken for the GetFromView method call to execute
         /// </summary>
-        GetIntoViewCallTime = 1 << 13,
+        GetFromViewCallTime = 1 << 13,
 
         /// <summary>
         /// Number of calls to the DeleteColumn method

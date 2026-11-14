@@ -5,7 +5,6 @@ using Benchmarks.Model;
 using L1CacheSystem.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
-using System.Threading.Tasks;
 
 namespace Benchmarks.Cases.Column;
 
@@ -59,7 +58,7 @@ public class GetIntColumnBench
             view.Source = value;
             view.DoubleProp = value.DoubleProp.HasValue ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
             view.Child = value.Child != null ? SetViewOperation.Set : SetViewOperation.RemoveIfExist;
-            _cacheSystem!.SetColumnCacheFromView(value.Id, view);
+            _cacheSystem!.SetColumnCacheFromView(value.Id, ref view);
 
             _cacheSystem.SetBitsNone(value, ValueOwnership.Transferred);
         }
@@ -73,25 +72,37 @@ public class GetIntColumnBench
         _meterFactory = null;
     }
 
-    [Benchmark(Description = "Get Int Entity", Baseline = true)]
-    public async Task GetEntity()
+    [Benchmark(Description = "Entity", Baseline = true)]
+    public void GetEntity()
     {
         for (long i = 0; i < Size; i++)
         {
-#pragma warning disable IDE0059 // Unnecessary assignment of a value
             var value = _cacheSystem!.GetBitsNone(i, ReturnType.Reference)!.IntProp;
-#pragma warning restore IDE0059 // Unnecessary assignment of a value
         }
     }
 
-    [Benchmark(Description = "Get Int Column")]
-    public async Task GetColumn()
+    [Benchmark(Description = "Column TryGet")]
+    public void TryGet()
     {
         for (long i = 0; i < Size; i++)
         {
-#pragma warning disable IDE0059 // Unnecessary assignment of a value
-            _ = _cacheSystem!.TryGetColumnCacheIntProp(i, out var intProp);
-#pragma warning restore IDE0059 // Unnecessary assignment of a value
+            int intProp;
+            _ = _cacheSystem!.TryGetColumnCacheIntProp(i, out intProp);
+        }
+    }
+
+    [Benchmark(Description = "Column Context TQ")]
+    public void ContextT()
+    {
+        for (long i = 0; i < Size; i++)
+        {
+            int intProp = 0;
+            _cacheSystem!.ViewInContextColumnCache(static (in context, ref intPropRef, ref iRef) =>
+            {
+                _ = context.TryGetColumnCacheIntProp(iRef, out intPropRef);
+            },
+            ref intProp,
+            ref i);
         }
     }
 }
