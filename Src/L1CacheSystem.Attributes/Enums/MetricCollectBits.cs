@@ -106,14 +106,14 @@ public enum MetricCollectBits : int
     SetFromViewCallTime = 1 << 11,
 
     /// <summary>
-    /// Number of calls to the GetIntoView method
+    /// Number of calls to the GetFromView method
     /// </summary>
-    GetIntoViewCallsCount = 1 << 12,
+    GetFromViewCallsCount = 1 << 12,
 
     /// <summary>
-    /// The time taken for the GetIntoView method call to execute
+    /// The time taken for the GetFromView method call to execute
     /// </summary>
-    GetIntoViewCallTime = 1 << 13,
+    GetFromViewCallTime = 1 << 13,
 
     /// <summary>
     /// Number of calls to the DeleteColumn method
@@ -133,12 +133,30 @@ public enum MetricCollectBits : int
     /// <summary>
     /// All counter metrics
     /// </summary>
-    AllCount = ItemsCount | ColumnsCount | SetCallsCount | SetColumnCallsCount | GetCallsCount | GetAllCallsCount | DeleteCallsCount | TryGetCallsCount | ForeachColumnCallsCount | SetFromViewCallsCount | GetIntoViewCallsCount | DeleteColumnCallsCount,
+    AllCount =
+        ItemsCount | ColumnsCount |
+        SetCallsCount | SetColumnCallsCount |
+        GetCallsCount | GetAllCallsCount |
+        DeleteCallsCount |
+        TryGetCallsCount |
+        ForeachColumnCallsCount |
+        SetFromViewCallsCount |
+        GetFromViewCallsCount |
+        DeleteColumnCallsCount,
 
     /// <summary>
     /// All time-related metrics
     /// </summary>
-    AllTimes = GetLockTime | SetCallTime |SetColumnCallTime | GetCallTime | GetAllCallTime | DeleteCallTime | TryGetCallTime | ForeachColumnCallTime | SetFromViewCallTime | GetIntoViewCallTime | DeleteColumnCallTime,
+    AllTimes =
+        GetLockTime |
+        SetCallTime |SetColumnCallTime |
+        GetCallTime | GetAllCallTime |
+        DeleteCallTime |
+        TryGetCallTime |
+        ForeachColumnCallTime |
+        SetFromViewCallTime |
+        GetFromViewCallTime |
+        DeleteColumnCallTime,
 
     AllBits = ~0
 }
