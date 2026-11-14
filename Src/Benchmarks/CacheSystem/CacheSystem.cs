@@ -3,6 +3,7 @@ using L1CacheSystem.Attributes;
 using L1CacheSystem.Attributes.Enums;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 
 namespace Benchmarks.Backend;
@@ -50,19 +51,24 @@ namespace Benchmarks.Backend;
 [KeyColumnCache(
     keyType: typeof(long),
     interfaceType: typeof(ICacheSystem),
-    cacheName: "ColumnCache"),
+    cacheName: "ColumnCache",
+    metricCollectFlags: MetricCollectBits.None),
     ColumnCache(
     columnType: typeof(long),
-    columnName: nameof(ValueClass.Id)),
+    columnName: nameof(ValueClass.Id),
+    metricCollectFlags: MetricCollectBits.None),
     ColumnCache(
     columnType: typeof(int),
-    columnName: nameof(ValueClass.IntProp)),
+    columnName: nameof(ValueClass.IntProp),
+    metricCollectFlags: MetricCollectBits.None),
     ColumnCache(
     columnType: typeof(double?),
-    columnName: nameof(ValueClass.DoubleProp)),
+    columnName: nameof(ValueClass.DoubleProp),
+    metricCollectFlags: MetricCollectBits.None),
     ColumnCache(
     columnType: typeof(ValueClass),
-    columnName: nameof(ValueClass.Child))]
+    columnName: nameof(ValueClass.Child),
+    metricCollectFlags: MetricCollectBits.None)]
 public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICacheSystem
 {
     public CacheSystem(

@@ -655,7 +655,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             _source = source;
         }}
 
-        private {keyInfo.ContainsType.Name} _source {{ get; }}");
+        private {keyInfo.ContainsType.Name} _source {{ get; }}
+        public readonly IReadOnlyCollection<{keyInfo.KeyType.GetFullTypeName()}> GetKeys() => _source.{VarIndexName(keyInfo)}.Keys;");
 
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {

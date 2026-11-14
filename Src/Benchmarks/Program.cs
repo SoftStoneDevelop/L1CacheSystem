@@ -10,7 +10,8 @@ internal class Program
     static void Main()
     {
         //BenchmarkRunner.Run<GetIntColumnBench>();
-        BenchmarkRunner.Run<SetViewBench>();
+        //BenchmarkRunner.Run<SetViewBench>();
+        BenchmarkRunner.Run<GetViewBench>();
         //BenchmarkRunner.Run<ViewInContextBench>();
         //BenchmarkRunner.Run<UpdateColumnBench>();
 
