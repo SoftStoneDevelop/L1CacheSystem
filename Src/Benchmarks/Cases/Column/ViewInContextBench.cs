@@ -5,6 +5,7 @@ using Benchmarks.Model;
 using L1CacheSystem.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Numerics.Tensors;
 using System.Threading.Tasks;
 
 namespace Benchmarks.Cases.Column;
@@ -130,5 +131,20 @@ public class ViewInContextBench
         }
 
         refSum = interSum;
+    }
+
+    [Benchmark(Description = "ViewInContext OptimisedPtr Tensor")]
+    public async Task ViewInContextOptimisedPtrTensor()
+    {
+        var sum = 0;
+        unsafe
+        {
+            _cacheSystem!.ViewInContextColumnCache(&OptimisedPtrTensorBody, ref sum);
+        }
+    }
+
+    private static void OptimisedPtrTensorBody(in CacheSystem.ViewContextColumnCache viewContext, ref int refSum)
+    {
+        refSum = TensorPrimitives.Sum(viewContext.GetIntPropSpan());
     }
 }
