@@ -6,6 +6,7 @@ using L1CacheSystem.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace Benchmarks.Cases.Column;
 
@@ -154,7 +155,8 @@ public class GetViewBench
         {
             var keysSpan = viewContext.GetIdSpan();
             var copyAllCast = (List<ValueClass>)state;
-            copyAllCast.Capacity = keysSpan.Length;
+            CollectionsMarshal.SetCount(copyAllCast, keysSpan.Length);
+            var listSpan = CollectionsMarshal.AsSpan(copyAllCast);
 
             var getView = new CacheSystem.GetViewColumnCache<ValueClass>()
             {
@@ -201,12 +203,12 @@ public class GetViewBench
                 }
             };
 
-            foreach (var key in keysSpan)
+            for (int i = 0; i < keysSpan.Length; i++)
             {
-                viewContext.GetFromView(key, ref getView);
+                viewContext.GetFromView(keysSpan[i], ref getView);
                 if (getView.FuncCreateNewSourceCalled)
                 {
-                    copyAllCast.Add(getView.Source);
+                    listSpan[i] = getView.Source;
                 }
             }
         },
@@ -227,7 +229,8 @@ public class GetViewBench
     {
         var keysSpan = viewContext.GetIdSpan();
         var copyAllCast = (List<ValueClass>)state;
-        copyAllCast.Capacity = keysSpan.Length;
+        CollectionsMarshal.SetCount(copyAllCast, keysSpan.Length);
+        var listSpan = CollectionsMarshal.AsSpan(copyAllCast);
 
         var getView = new CacheSystem.GetViewColumnCache<ValueClass>()
         {
@@ -274,12 +277,12 @@ public class GetViewBench
             }
         };
 
-        foreach (var key in keysSpan)
+        for (int i = 0; i < keysSpan.Length; i++)
         {
-            viewContext.GetFromView(key, ref getView);
+            viewContext.GetFromView(keysSpan[i], ref getView);
             if (getView.FuncCreateNewSourceCalled)
             {
-                copyAllCast.Add(getView.Source);
+                listSpan[i] = getView.Source;
             }
         }
     }
