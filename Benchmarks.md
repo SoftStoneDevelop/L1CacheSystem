@@ -140,34 +140,34 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>GetIntColumnBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/GetIntColumnBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/GetIntColumnBench.cs)
 
 <h1 align="center">
   <a>GetViewBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/GetViewBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/GetViewBench.cs)
 
 <h1 align="center">
   <a>SetViewBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/SetViewBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/SetViewBench.cs)
 
 <h1 align="center">
   <a>UpdateColumnBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/UpdateColumnBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/UpdateColumnBench.cs)
 
 <h1 align="center">
   <a>ViewInContextBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/ViewInContextBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/ViewInContextBench.cs)
 
 <h1 align="center">
   <a>OptionalBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/OptionalBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/OptionalBench.cs)
