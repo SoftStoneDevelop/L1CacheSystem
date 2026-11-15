@@ -75,7 +75,7 @@ namespace Benchmarks.Backend;
     propAsKey: nameof(ModelWithOptions.Id),
     metricCollectFlags: MetricCollectBits.None,
     copyMethodName: nameof(ModelWithOptions.MakeCopy),
-    copyMethodType: CopyMethodType.CopyMethodOnInstance)]
+    copyMethodType: CopyMethodType.CopyMethodOnType)]
 [KeyColumnCache(
     keyType: typeof(long),
     interfaceType: typeof(ICacheSystem),
