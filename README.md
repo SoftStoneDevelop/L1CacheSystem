@@ -24,7 +24,9 @@ Caching is also supported in two modes:
  - Columns
 
 Columns are more data‑oriented. They can be useful if you often need to scan properties within a class.
- 
+
+[Benchmarks](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Benchmarks.md)
+
 <h1 align="left">
   <a>Usage</a>
 </h1>
