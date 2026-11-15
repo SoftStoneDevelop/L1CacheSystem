@@ -165,3 +165,9 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
 </h1>
 
 [Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/ViewInContextBench.cs)
+
+<h1 align="center">
+  <a>OptionalBench</a>
+</h1>
+
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/OptionalBench.cs)
