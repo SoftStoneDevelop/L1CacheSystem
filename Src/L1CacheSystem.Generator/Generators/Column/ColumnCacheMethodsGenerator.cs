@@ -1859,7 +1859,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {{
             {VarSlimLockName(cacheInfo.KeyInfo)}.ExitReadLock();");
 
-            if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetFromViewCallTime))
+            if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.GetFromViewCallTime))
             {
                 builder.Append($@"
             _metrics.GetFromViewCallTime(_timeProvider.GetElapsedTime(start).TotalMicroseconds, ""{cacheInfo.KeyInfo.CacheName}"");");
