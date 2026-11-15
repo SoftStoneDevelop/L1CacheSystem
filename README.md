@@ -134,12 +134,12 @@ Now usage case (Entity):
 public class MyValueService
 {
   private readonly ILogger<MyValueService> _logger;
-  private readonly IServiceCacheSystem _casheSystem;
+  private readonly IServiceCacheSystem _cacheSystem;
   
-  public MyValueService(ILogger<MyValueService> logger, IServiceCacheSystem casheSystem)
+  public MyValueService(ILogger<MyValueService> logger, IServiceCacheSystem cacheSystem)
   {
     _logger = logger;
-    _casheSystem = casheSystem;
+    _cacheSystem = cacheSystem;
   }
 
   public CreateValue(long id)
@@ -158,7 +158,7 @@ public class MyValueService
     // Then CacheSystem will save a copy of it during the call (by copying it using the method you specified earlier, at the configuration stage).
 
     _cacheSystem.SetYouCacheName(value.Id, value, valueOwnership: ValueOwnership.Transferred, expiry: null);
-    // if "expiry" is provided then casheSystem remove cache value from cache when key is expire
+    // if "expiry" is provided then cacheSystem remove cache value from cache when key is expire
 
     // The Set method is thread‑safe on its own; the lockGuard is only needed if you’re using something more complex than a simple set/get.
   }
@@ -166,7 +166,7 @@ public class MyValueService
   public DoRelatedWork(long id, ILockGuard? lockGuard = null)
   {
     // in this method we not shure what poinc its called
-    // maybe this is root call or maybe recudsive
+    // maybe this is root call or maybe recursive
     await using var lockGuard = new LockGuard(_logger, lockGuard);
 
     // If this is not the root (lockGuard != null) and the parent already has a lock on this key,
@@ -195,12 +195,12 @@ Now usage case (Column):
 public class MyValueService
 {
   private readonly ILogger<MyValueService> _logger;
-  private readonly IServiceCacheSystem _casheSystem;
+  private readonly IServiceCacheSystem _cacheSystem;
   
-  public MyValueService(ILogger<MyValueService> logger, IServiceCacheSystem casheSystem)
+  public MyValueService(ILogger<MyValueService> logger, IServiceCacheSystem cacheSystem)
   {
     _logger = logger;
-    _casheSystem = casheSystem;
+    _cacheSystem = cacheSystem;
   }
 
   public CreateValue(long id)
@@ -218,7 +218,7 @@ public class MyValueService
         FuncValue = static (source) => source.IntProp
     };
 
-    _casheSystem.SetYouColumnCacheNameFromView(value.Id, view, expiry: null);
+    _cacheSystem.SetYouColumnCacheNameFromView(value.Id, view, expiry: null);
 
     // You can also fill in and update not everything at once, but column by column.
     // _cacheSystem.SetColumnCacheId(value.Id, value.Id, expiry: null);
