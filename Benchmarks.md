@@ -295,6 +295,49 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
 
 [Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/ViewInContextBench.cs)
 
+| Method                       | Runtime        | Size    | Mean          | Error       | StdDev        | Median        | Ratio | Allocated | Alloc Ratio |
+|----------------------------- |--------------- |-------- |--------------:|------------:|--------------:|--------------:|------:|----------:|------------:|
+| **&#39;Entity Foreach&#39;**             | **.NET 11.0**      | **10000**   |     **63.218 μs** |   **1.2591 μs** |     **1.5463 μs** |     **63.900 μs** |  **1.00** |   **80104 B** |       **1.000** |
+| &#39;ViewInContext naive&#39;        | .NET 11.0      | 10000   |      5.373 μs |   0.1319 μs |     0.3785 μs |      5.300 μs |  0.09 |      24 B |       0.000 |
+| &#39;ViewInContext Optimised&#39;    | .NET 11.0      | 10000   |      3.994 μs |   0.1006 μs |     0.2901 μs |      3.900 μs |  0.06 |         - |       0.000 |
+| &#39;ViewInContext OptimisedPtr&#39; | .NET 11.0      | 10000   |      4.049 μs |   0.1242 μs |     0.3584 μs |      4.000 μs |  0.06 |         - |       0.000 |
+|                              |                |         |               |             |               |               |       |           |             |
+| &#39;Entity Foreach&#39;             | NativeAOT 11.0 | 10000   |    114.984 μs |   2.6503 μs |     7.6467 μs |    111.850 μs |  1.00 |   80216 B |       1.000 |
+| &#39;ViewInContext naive&#39;        | NativeAOT 11.0 | 10000   |      6.864 μs |   0.2227 μs |     0.6244 μs |      6.900 μs |  0.06 |     136 B |       0.002 |
+| &#39;ViewInContext Optimised&#39;    | NativeAOT 11.0 | 10000   |      5.002 μs |   0.1761 μs |     0.5053 μs |      5.000 μs |  0.04 |      64 B |       0.001 |
+| &#39;ViewInContext OptimisedPtr&#39; | NativeAOT 11.0 | 10000   |      5.216 μs |   0.1453 μs |     0.4191 μs |      5.150 μs |  0.05 |      64 B |       0.001 |
+|                              |                |         |               |             |               |               |       |           |             |
+| **&#39;Entity Foreach&#39;**             | **.NET 11.0**      | **50000**   |    **536.909 μs** |  **63.0856 μs** |   **181.0044 μs** |    **518.600 μs** |  **1.00** |  **400104 B** |       **1.000** |
+| &#39;ViewInContext naive&#39;        | .NET 11.0      | 50000   |     21.456 μs |   0.5475 μs |     1.5531 μs |     21.000 μs |  0.04 |      24 B |       0.000 |
+| &#39;ViewInContext Optimised&#39;    | .NET 11.0      | 50000   |     18.985 μs |   0.3589 μs |     0.4133 μs |     18.900 μs |  0.04 |         - |       0.000 |
+| &#39;ViewInContext OptimisedPtr&#39; | .NET 11.0      | 50000   |     19.023 μs |   0.3801 μs |     0.5202 μs |     18.900 μs |  0.04 |         - |       0.000 |
+|                              |                |         |               |             |               |               |       |           |             |
+| &#39;Entity Foreach&#39;             | NativeAOT 11.0 | 50000   |    582.797 μs |  27.7301 μs |    78.2134 μs |    552.400 μs |  1.00 |  400216 B |       1.000 |
+| &#39;ViewInContext naive&#39;        | NativeAOT 11.0 | 50000   |     23.320 μs |   0.7536 μs |     2.1256 μs |     22.500 μs |  0.04 |     136 B |       0.000 |
+| &#39;ViewInContext Optimised&#39;    | NativeAOT 11.0 | 50000   |     20.758 μs |   0.4150 μs |     0.9618 μs |     20.650 μs |  0.04 |      64 B |       0.000 |
+| &#39;ViewInContext OptimisedPtr&#39; | NativeAOT 11.0 | 50000   |     20.277 μs |   0.4043 μs |     0.7594 μs |     20.100 μs |  0.04 |      64 B |       0.000 |
+|                              |                |         |               |             |               |               |       |           |             |
+| **&#39;Entity Foreach&#39;**             | **.NET 11.0**      | **100000**  |  **2,006.580 μs** |  **70.2793 μs** |   **200.5109 μs** |  **2,007.050 μs** |  **1.00** |  **800104 B** |       **1.000** |
+| &#39;ViewInContext naive&#39;        | .NET 11.0      | 100000  |     43.887 μs |   1.7040 μs |     4.8615 μs |     44.350 μs |  0.02 |      24 B |       0.000 |
+| &#39;ViewInContext Optimised&#39;    | .NET 11.0      | 100000  |     38.078 μs |   0.7592 μs |     1.7444 μs |     37.300 μs |  0.02 |         - |       0.000 |
+| &#39;ViewInContext OptimisedPtr&#39; | .NET 11.0      | 100000  |     37.031 μs |   0.6834 μs |     0.5706 μs |     37.100 μs |  0.02 |         - |       0.000 |
+|                              |                |         |               |             |               |               |       |           |             |
+| &#39;Entity Foreach&#39;             | NativeAOT 11.0 | 100000  |  2,493.608 μs | 139.1209 μs |   408.0177 μs |  2,448.000 μs |  1.00 |  800216 B |       1.000 |
+| &#39;ViewInContext naive&#39;        | NativeAOT 11.0 | 100000  |     43.844 μs |   1.1626 μs |     3.2982 μs |     42.400 μs |  0.02 |     136 B |       0.000 |
+| &#39;ViewInContext Optimised&#39;    | NativeAOT 11.0 | 100000  |     39.200 μs |   0.7822 μs |     0.6532 μs |     39.400 μs |  0.02 |      64 B |       0.000 |
+| &#39;ViewInContext OptimisedPtr&#39; | NativeAOT 11.0 | 100000  |     38.905 μs |   0.7354 μs |     0.8755 μs |     38.600 μs |  0.02 |      64 B |       0.000 |
+|                              |                |         |               |             |               |               |       |           |             |
+| **&#39;Entity Foreach&#39;**             | **.NET 11.0**      | **1000000** | **31,103.600 μs** | **530.1159 μs** |   **942.2805 μs** | **30,700.950 μs** |  **1.00** | **8000104 B** |       **1.000** |
+| &#39;ViewInContext naive&#39;        | .NET 11.0      | 1000000 |    527.356 μs |  68.1227 μs |   193.2527 μs |    425.800 μs |  0.02 |      24 B |       0.000 |
+| &#39;ViewInContext Optimised&#39;    | .NET 11.0      | 1000000 |    380.143 μs |   7.5844 μs |    20.2443 μs |    377.300 μs |  0.01 |         - |       0.000 |
+| &#39;ViewInContext OptimisedPtr&#39; | .NET 11.0      | 1000000 |    385.436 μs |  11.1106 μs |    30.9719 μs |    374.900 μs |  0.01 |         - |       0.000 |
+|                              |                |         |               |             |               |               |       |           |             |
+| &#39;Entity Foreach&#39;             | NativeAOT 11.0 | 1000000 | 39,391.733 μs | 781.3147 μs | 1,886.9629 μs | 38,698.600 μs | 1.000 | 8000216 B |       1.000 |
+| &#39;ViewInContext naive&#39;        | NativeAOT 11.0 | 1000000 |    558.765 μs |  80.1382 μs |   232.4954 μs |    467.800 μs | 0.014 |     136 B |       0.000 |
+| &#39;ViewInContext Optimised&#39;    | NativeAOT 11.0 | 1000000 |    376.294 μs |   7.7419 μs |    21.1934 μs |    370.000 μs | 0.010 |      64 B |       0.000 |
+| &#39;ViewInContext OptimisedPtr&#39; | NativeAOT 11.0 | 1000000 |    366.300 μs |   7.3146 μs |    12.8110 μs |    365.300 μs | 0.009 |      64 B |       0.000 |
+
+
 <h1 align="center">
   <a>OptionalBench</a>
 </h1>
