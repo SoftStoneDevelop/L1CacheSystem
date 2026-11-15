@@ -11,8 +11,6 @@ using System.Threading.Tasks;
 namespace Benchmarks.Cases.Entity;
 
 [MemoryDiagnoser]
-[ThreadingDiagnoser]
-[ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net11_0)]
 [SimpleJob(RuntimeMoniker.NativeAot11_0)]
 public class SetMemoryCacheBench
@@ -21,7 +19,7 @@ public class SetMemoryCacheBench
     private CacheSystem? _cacheSystem;
     private MemoryCache? _memoryCache;
 
-    [Params(10_000, 25_000, 50_000)]
+    [Params(10_000, 25_000, 50_000, 100_000)]
     public int Size;
 
     [IterationSetup]

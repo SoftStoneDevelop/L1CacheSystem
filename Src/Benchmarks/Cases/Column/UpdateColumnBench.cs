@@ -10,8 +10,6 @@ using System.Threading.Tasks;
 namespace Benchmarks.Cases.Column;
 
 [MemoryDiagnoser]
-[ThreadingDiagnoser]
-[ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net11_0)]
 [SimpleJob(RuntimeMoniker.NativeAot11_0)]
 public class UpdateColumnBench
@@ -19,7 +17,7 @@ public class UpdateColumnBench
     private FakeMeterFactory? _meterFactory;
     private CacheSystem? _cacheSystem;
 
-    [Params(10_000, 25_000, 50_000, 100_000)]
+    [Params(10_000, 50_000, 100_000, 1_000_000)]
     public int Size;
 
     [IterationSetup]
@@ -73,8 +71,8 @@ public class UpdateColumnBench
         _meterFactory = null;
     }
 
-    [Benchmark(Description = "Set IntProp Entity", Baseline = true)]
-    public async Task SetIntPropEntity()
+    [Benchmark(Description = "Entity Set IntProp", Baseline = true)]
+    public async Task EntitySetIntProp()
     {
         for (long i = 0; i < Size; i++)
         {
@@ -84,8 +82,8 @@ public class UpdateColumnBench
         }
     }
 
-    [Benchmark(Description = "Set IntProp Column")]
-    public async Task GetColumn()
+    [Benchmark(Description = "Column SetIntProp")]
+    public async Task ColumnSetIntProp()
     {
         for (long i = 0; i < Size; i++)
         {

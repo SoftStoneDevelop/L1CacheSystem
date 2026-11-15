@@ -23,8 +23,16 @@ Caching is also supported in two modes:
  - Entities
  - Columns
 
-Columns are more data‑oriented. They can be useful if you often need to scan properties within a class.
- 
+An in-app cache system. It all started because IMemoryCache doesn’t allow you to scan a collection (and I really wanted to. Yeah, yeah, some might say that’s an anti-pattern and that I’m a total degenerate, but in the context where I used it, that’s exactly what was needed). That led to the first part of the EntityCache system, which is similar to IMemoryCache in terms of its API. It also supports automatic copying upon retrieval or returning a reference if a copy isn’t needed.
+
+At some point, I became dissatisfied with the cache’s scanning speed; moreover, stored entities sometimes have a lot of optional properties, but if you store the classes, memory is allocated for everything anyway. This led to the introduction of the ability to store data in the cache by columns, which allows for column-based scanning—a process that’s faster than reading separate classes, since columns are stored sequentially in memory.
+
+Both caches support time-based expiration and the ability to lock individual keys in the cache (as if you had RedLock built into the application. This is sometimes necessary to support complex business logic).
+
+Metrics are available for all operations; if metrics are not needed, they can be disabled either for the entire cache or for a specific one. Enabling/disabling is done via flags for each type separately. If a metric is not enabled, it does not exist in the code at all—the code generator simply won’t add it.
+
+[Benchmarks](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Benchmarks.md)
+
 <h1 align="left">
   <a>Usage</a>
 </h1>

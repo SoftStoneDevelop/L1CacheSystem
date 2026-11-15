@@ -9,8 +9,6 @@ using System;
 namespace Benchmarks.Cases.Column;
 
 [MemoryDiagnoser]
-[ThreadingDiagnoser]
-[ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net11_0)]
 [SimpleJob(RuntimeMoniker.NativeAot11_0)]
 public class GetIntColumnBench
@@ -18,7 +16,7 @@ public class GetIntColumnBench
     private FakeMeterFactory? _meterFactory;
     private CacheSystem? _cacheSystem;
 
-    [Params(10_000, 25_000, 50_000, 100_000)]
+    [Params(10_000, 50_000, 100_000, 1_000_000)]
     public int Size;
 
     [IterationSetup]
@@ -81,8 +79,8 @@ public class GetIntColumnBench
         }
     }
 
-    [Benchmark(Description = "Column TryGet")]
-    public void TryGet()
+    [Benchmark(Description = "Column Naive")]
+    public void ColumnNaive()
     {
         for (long i = 0; i < Size; i++)
         {
@@ -91,18 +89,36 @@ public class GetIntColumnBench
         }
     }
 
-    [Benchmark(Description = "Column Context TQ")]
-    public void ContextT()
+    [Benchmark(Description = "Column Optimised")]
+    public void ContextOptimised()
     {
         for (long i = 0; i < Size; i++)
         {
             int intProp = 0;
-            _cacheSystem!.ViewInContextColumnCache(static (in context, ref intPropRef, ref iRef) =>
+            _cacheSystem!.ViewInContextColumnCache(static (in viewContext, ref intPropRef, ref iRef) =>
             {
-                _ = context.TryGetColumnCacheIntProp(iRef, out intPropRef);
+                _ = viewContext.TryGetColumnCacheIntProp(iRef, out intPropRef);
             },
             ref intProp,
             ref i);
         }
+    }
+
+    [Benchmark(Description = "Column OptimisedPtr")]
+    public void ContextOptimisedPtr()
+    {
+        for (long i = 0; i < Size; i++)
+        {
+            int intProp = 0;
+            unsafe
+            {
+                _cacheSystem!.ViewInContextColumnCache(&OptimisedPtrBody, ref intProp, ref i);
+            }
+        }
+    }
+
+    private static void OptimisedPtrBody(in CacheSystem.ViewContextColumnCache viewContext, ref int intPropRef, ref long iRef)
+    {
+        _ = viewContext.TryGetColumnCacheIntProp(iRef, out intPropRef);
     }
 }
