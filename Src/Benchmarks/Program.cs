@@ -1,7 +1,5 @@
 ﻿using BenchmarkDotNet.Running;
-using Benchmarks.Cases;
 using Benchmarks.Cases.Column;
-using Benchmarks.Cases.Entity;
 
 namespace Benchmarks;
 
@@ -9,11 +7,12 @@ internal class Program
 {
     static void Main()
     {
-        //BenchmarkRunner.Run<GetIntColumnBench>();
-        //BenchmarkRunner.Run<SetViewBench>();
+        BenchmarkRunner.Run<GetIntColumnBench>();
+        BenchmarkRunner.Run<SetViewBench>();
         BenchmarkRunner.Run<GetViewBench>();
-        //BenchmarkRunner.Run<ViewInContextBench>();
-        //BenchmarkRunner.Run<UpdateColumnBench>();
+        BenchmarkRunner.Run<ViewInContextBench>();
+        BenchmarkRunner.Run<UpdateColumnBench>();
+        BenchmarkRunner.Run<OptionalBench>();
 
         //BenchmarkRunner.Run<GetMemoryCacheBench>();
         //BenchmarkRunner.Run<SetMemoryCacheBench>();

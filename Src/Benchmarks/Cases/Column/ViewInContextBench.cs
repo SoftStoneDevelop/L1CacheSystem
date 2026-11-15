@@ -10,15 +10,14 @@ using System.Threading.Tasks;
 namespace Benchmarks.Cases.Column;
 
 [MemoryDiagnoser]
-[ThreadingDiagnoser]
-[ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net11_0)]
+[SimpleJob(RuntimeMoniker.NativeAot11_0)]
 public class ViewInContextBench
 {
     private FakeMeterFactory? _meterFactory;
     private CacheSystem? _cacheSystem;
 
-    [Params(50_000, 100_000, 1_000_000)]
+    [Params(10_000, 50_000, 100_000, 1_000_000)]
     public int Size;
 
     [IterationSetup]
@@ -72,15 +71,15 @@ public class ViewInContextBench
         _meterFactory = null;
     }
 
-    [Benchmark(Description = "Entity", Baseline = true)]
+    [Benchmark(Description = "Entity Foreach", Baseline = true)]
     public async Task ForeachEntity()
     {
         var sum = 0;
         _cacheSystem!.ForeachBitsNone((value) => { sum += value.IntProp; });
     }
 
-    [Benchmark(Description = "ViewInContext")]
-    public async Task SpanIn()
+    [Benchmark(Description = "ViewInContext naive")]
+    public async Task ViewInContextNaive()
     {
         var sum = 0;
         _cacheSystem!.ViewInContextColumnCache((in context) =>
@@ -93,20 +92,43 @@ public class ViewInContextBench
         });
     }
 
-    [Benchmark(Description = "ViewInContextInter")]
-    public async Task SpanIn2()
+    [Benchmark(Description = "ViewInContext Optimised")]
+    public async Task ViewInContextOptimised()
     {
         var sum = 0;
-        _cacheSystem!.ViewInContextColumnCache((in context) =>
+        _cacheSystem!.ViewInContextColumnCache(static (in viewContext, ref refSum) =>
         {
-            var span = context.GetIntPropSpan();
+            var span = viewContext.GetIntPropSpan();
             var interSum = 0;
             for (int i = 0; i < span.Length; i++)
             {
                 interSum += span[i];
             }
 
-            sum = interSum;
-        });
+            refSum = interSum;
+        },
+        ref sum);
+    }
+
+    [Benchmark(Description = "ViewInContext OptimisedPtr")]
+    public async Task ViewInContextOptimisedPtr()
+    {
+        var sum = 0;
+        unsafe
+        {
+            _cacheSystem!.ViewInContextColumnCache(&OptimisedPtrBody, ref sum);
+        }
+    }
+
+    private static void OptimisedPtrBody(in CacheSystem.ViewContextColumnCache viewContext, ref int refSum)
+    {
+        var span = viewContext.GetIntPropSpan();
+        var interSum = 0;
+        for (int i = 0; i < span.Length; i++)
+        {
+            interSum += span[i];
+        }
+
+        refSum = interSum;
     }
 }

@@ -8,45 +8,45 @@ using System.Diagnostics.Metrics;
 namespace Benchmarks.Backend;
 
 [EntityCacheType(
-        cacheType: typeof(ValueClass),
-        interfaceType: typeof(ICacheSystem),
-        cacheName: "BitsNone",
-        propAsKey: nameof(ValueClass.Id),
-        metricCollectFlags: MetricCollectBits.None,
-        copyMethodName: nameof(ValueClass.MakeCopy),
-        copyMethodType: CopyMethodType.CopyMethodOnType)]
+    cacheType: typeof(ValueClass),
+    interfaceType: typeof(ICacheSystem),
+    cacheName: "BitsNone",
+    propAsKey: nameof(ValueClass.Id),
+    metricCollectFlags: MetricCollectBits.None,
+    copyMethodName: nameof(ValueClass.MakeCopy),
+    copyMethodType: CopyMethodType.CopyMethodOnType)]
 [EntityCacheType(
-        cacheType: typeof(ValueClass),
-        interfaceType: typeof(ICacheSystem),
-        cacheName: "BitsDefault",
-        propAsKey: nameof(ValueClass.Id),
-        metricCollectFlags: MetricCollectBits.DefaultCollectBits,
-        copyMethodName: nameof(ValueClass.MakeCopy),
-        copyMethodType: CopyMethodType.CopyMethodOnType)]
+    cacheType: typeof(ValueClass),
+    interfaceType: typeof(ICacheSystem),
+    cacheName: "BitsDefault",
+    propAsKey: nameof(ValueClass.Id),
+    metricCollectFlags: MetricCollectBits.DefaultCollectBits,
+    copyMethodName: nameof(ValueClass.MakeCopy),
+    copyMethodType: CopyMethodType.CopyMethodOnType)]
 [EntityCacheType(
-        cacheType: typeof(ValueClass),
-        interfaceType: typeof(ICacheSystem),
-        cacheName: "BitsAllTimes",
-        propAsKey: nameof(ValueClass.Id),
-        metricCollectFlags: MetricCollectBits.AllTimes,
-        copyMethodName: nameof(ValueClass.MakeCopy),
-        copyMethodType: CopyMethodType.CopyMethodOnType)]
+    cacheType: typeof(ValueClass),
+    interfaceType: typeof(ICacheSystem),
+    cacheName: "BitsAllTimes",
+    propAsKey: nameof(ValueClass.Id),
+    metricCollectFlags: MetricCollectBits.AllTimes,
+    copyMethodName: nameof(ValueClass.MakeCopy),
+    copyMethodType: CopyMethodType.CopyMethodOnType)]
 [EntityCacheType(
-        cacheType: typeof(ValueClass),
-        interfaceType: typeof(ICacheSystem),
-        cacheName: "BitsAllCount",
-        propAsKey: nameof(ValueClass.Id),
-        metricCollectFlags: MetricCollectBits.AllCount,
-        copyMethodName: nameof(ValueClass.MakeCopy),
-        copyMethodType: CopyMethodType.CopyMethodOnType)]
+    cacheType: typeof(ValueClass),
+    interfaceType: typeof(ICacheSystem),
+    cacheName: "BitsAllCount",
+    propAsKey: nameof(ValueClass.Id),
+    metricCollectFlags: MetricCollectBits.AllCount,
+    copyMethodName: nameof(ValueClass.MakeCopy),
+    copyMethodType: CopyMethodType.CopyMethodOnType)]
 [EntityCacheType(
-        cacheType: typeof(ValueClass),
-        interfaceType: typeof(ICacheSystem),
-        cacheName: "BitsAll",
-        propAsKey: nameof(ValueClass.Id),
-        metricCollectFlags: MetricCollectBits.AllBits,
-        copyMethodName: nameof(ValueClass.MakeCopy),
-        copyMethodType: CopyMethodType.CopyMethodOnType)]
+    cacheType: typeof(ValueClass),
+    interfaceType: typeof(ICacheSystem),
+    cacheName: "BitsAll",
+    propAsKey: nameof(ValueClass.Id),
+    metricCollectFlags: MetricCollectBits.AllBits,
+    copyMethodName: nameof(ValueClass.MakeCopy),
+    copyMethodType: CopyMethodType.CopyMethodOnType)]
 [KeyColumnCache(
     keyType: typeof(long),
     interfaceType: typeof(ICacheSystem),
@@ -68,6 +68,30 @@ namespace Benchmarks.Backend;
     columnType: typeof(ValueClass),
     columnName: nameof(ValueClass.Child),
     metricCollectFlags: MetricCollectBits.None)]
+[EntityCacheType(
+    cacheType: typeof(ModelWithOptions),
+    interfaceType: typeof(ICacheSystem),
+    cacheName: "OptionalModel",
+    propAsKey: nameof(ModelWithOptions.Id),
+    metricCollectFlags: MetricCollectBits.None,
+    copyMethodName: nameof(ModelWithOptions.MakeCopy),
+    copyMethodType: CopyMethodType.CopyMethodOnInstance)]
+[KeyColumnCache(
+    keyType: typeof(long),
+    interfaceType: typeof(ICacheSystem),
+    cacheName: "ColumnOptionalModel",
+    metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(long), columnName: nameof(ModelWithOptions.Id), metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(double?), columnName: nameof(ModelWithOptions.DoubleProp1), metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(double?), columnName: nameof(ModelWithOptions.DoubleProp2), metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(double?), columnName: nameof(ModelWithOptions.DoubleProp3), metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(double?), columnName: nameof(ModelWithOptions.DoubleProp4), metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(double?), columnName: nameof(ModelWithOptions.DoubleProp5), metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(double?), columnName: nameof(ModelWithOptions.DoubleProp6), metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(double?), columnName: nameof(ModelWithOptions.DoubleProp7), metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(double?), columnName: nameof(ModelWithOptions.DoubleProp8), metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(double?), columnName: nameof(ModelWithOptions.DoubleProp9), metricCollectFlags: MetricCollectBits.None),
+    ColumnCache(columnType: typeof(double?), columnName: nameof(ModelWithOptions.DoubleProp10), metricCollectFlags: MetricCollectBits.None)]
 public sealed partial class CacheSystem : L1CacheSystem.L1CacheSystemBase, ICacheSystem
 {
     public CacheSystem(

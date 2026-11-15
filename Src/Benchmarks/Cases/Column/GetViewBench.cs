@@ -11,8 +11,6 @@ using System.Runtime.InteropServices;
 namespace Benchmarks.Cases.Column;
 
 [MemoryDiagnoser]
-[ThreadingDiagnoser]
-[ExceptionDiagnoser]
 [SimpleJob(RuntimeMoniker.Net11_0)]
 [SimpleJob(RuntimeMoniker.NativeAot11_0)]
 public class GetViewBench
@@ -20,7 +18,7 @@ public class GetViewBench
     private FakeMeterFactory? _meterFactory;
     private CacheSystem? _cacheSystem;
 
-    [Params(10_000, 25_000, 50_000, 100_000)]
+    [Params(10_000, 50_000, 100_000, 1_000_000)]
     public int Size;
 
     [IterationSetup]
@@ -80,8 +78,8 @@ public class GetViewBench
         var copyAll = _cacheSystem!.GetAllBitsNone(returnType: ReturnType.Copy);
     }
 
-    [Benchmark(Description = "Column CopyAll")]
-    public void ViewCopyAll()
+    [Benchmark(Description = "Column CopyAll Naive")]
+    public void ViewCopyAllNaive()
     {
         var copyAll = new List<ValueClass>();
         _cacheSystem!.ViewInContextColumnCache(static (in viewContext, state) =>
@@ -215,7 +213,7 @@ public class GetViewBench
         copyAll);
     }
 
-    [Benchmark(Description = "Column CopyAll DirtyTrick Ptr")]
+    [Benchmark(Description = "Column CopyAll DirtyTrickPtr")]
     public void ViewCopyAllDirtyTrickPtr()
     {
         var copyAll = new List<ValueClass>();
