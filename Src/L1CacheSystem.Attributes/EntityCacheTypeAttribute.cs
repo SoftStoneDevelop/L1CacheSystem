@@ -1,11 +1,13 @@
 ﻿using L1CacheSystem.Attributes.Enums;
 using System;
+using System.Diagnostics;
 
 namespace L1CacheSystem.Attributes;
 
 /// <summary>
 /// Instruction for generating caching methods of a given type
 /// </summary>
+[Conditional("INCLUDE_GENERATOR_ATTRIBUTES")]
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public sealed class EntityCacheTypeAttribute : Attribute
 {
