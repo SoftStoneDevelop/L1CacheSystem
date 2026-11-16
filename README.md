@@ -31,7 +31,7 @@ Both caches support time-based expiration and the ability to lock individual key
 
 Metrics are available for all operations; if metrics are not needed, they can be disabled either for the entire cache or for a specific one. Enabling/disabling is done via flags for each type separately. If a metric is not enabled, it does not exist in the code at all—the code generator simply won’t add it.
 
-[Benchmarks](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Benchmarks.md)
+[Benchmarks](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Benchmarks.md)
 
 <h1 align="left">
   <a>Usage</a>
