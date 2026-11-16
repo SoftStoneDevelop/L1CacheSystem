@@ -3,6 +3,7 @@ using L1CacheSystem.Generator.Helpers;
 using Microsoft.CodeAnalysis;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace L1CacheSystem.Generator.Generators.Lock
 {
@@ -16,7 +17,7 @@ namespace L1CacheSystem.Generator.Generators.Lock
             StringBuilder builder,
             string partName)
         {
-            Usings(builder, cacheInfo);
+            Usings(builder);
             Namespace(builder, cacheInfo);
             StartClass(builder, cacheInfo);
 
@@ -24,7 +25,7 @@ namespace L1CacheSystem.Generator.Generators.Lock
 
             LockMethods(builder, cacheInfo);
 
-            EndClass(builder, cacheInfo);
+            EndClass(builder);
 
             context.AddSource($"{partName}{cacheInfo.CacheName}Locks.g.cs", builder.ToString());
         }
@@ -44,7 +45,7 @@ namespace L1CacheSystem.Generator.Generators.Lock
             yield return GetLockMethodDeclaration(cacheInfo);
         }
 
-        private void Usings(StringBuilder builder, Param cacheInfo)
+        private void Usings(StringBuilder builder)
         {
             builder.Append(@"
 using Microsoft.Extensions.Logging;
@@ -75,9 +76,40 @@ public partial class {cacheInfo.ContainsType.Name}
 ");
         }
 
+        public static string GetLockDicName(string cacheName)
+        {
+            return $"_{cacheName.ToCamelCase()}Locks";
+        }
+
+        public static string HaveChangesVarName(string cacheName)
+        {
+            return $"_{cacheName.ToCamelCase()}HaveSomeChanges";
+        }
+
+        public static string MinExpiredDateName(string cacheName)
+        {
+            return $"_{cacheName.ToCamelCase()}MinExpired";
+        }
+
+        public static string HaveLockChangesVarName(string cacheName)
+        {
+            return $"_{cacheName.ToCamelCase()}HaveLockChanges";
+        }
+
+        public static string MinLockExpiredDateName(string cacheName)
+        {
+            return $"_{cacheName.ToCamelCase()}MinLockExpired";
+        }
+
         private void PrivateVars(StringBuilder builder, Param cacheInfo)
         {
             builder.Append($@"
+    private readonly ConcurrentDictionary<string, CacheLockInfo> {GetLockDicName(cacheInfo.CacheName)} = new();
+    private int {HaveChangesVarName(cacheInfo.CacheName)} = 1; // It's simple: 1 means someone triggered a cache update. 0 means no one triggered a cache update.
+    private DateTimeOffset? {MinExpiredDateName(cacheInfo.CacheName)} = null;
+
+    private int {HaveLockChangesVarName(cacheInfo.CacheName)} = 1; // It's simple: 1 means someone triggered a GetLock. 0 means no one triggered a GetLock.
+    private DateTimeOffset? {MinLockExpiredDateName(cacheInfo.CacheName)} = null;
     private const string {GetLockPrefixName(cacheInfo)} = ""{cacheInfo.CacheName.ToLowerInvariant()}"";
 ");
         }
@@ -106,12 +138,26 @@ public partial class {cacheInfo.ContainsType.Name}
 
     public async {GetLockMethodDeclaration(cacheInfo)}
     {{
-        await GetLockAsync({GetLockKeyMethodName(cacheInfo.CacheName)}({cacheInfo.CacheName.ToCamelCase()}Key), ""{cacheInfo.CacheName}"", lockGuard, {collectMetricsStr}, cancellationToken);
+        try
+        {{
+            await GetLockAsync(
+                {GetLockDicName(cacheInfo.CacheName)},
+                {GetLockKeyMethodName(cacheInfo.CacheName)}({cacheInfo.CacheName.ToCamelCase()}Key),
+                ""{cacheInfo.CacheName}"",
+                lockGuard,
+                {collectMetricsStr},
+                cancellationToken)
+                .ConfigureAwait(false);
+        }}
+        finally
+        {{
+            Interlocked.Exchange(location1: ref {HaveLockChangesVarName(cacheInfo.CacheName)}, value: 1);
+        }}
     }}
 ");
         }
 
-        private void EndClass(StringBuilder builder, Param cacheInfo)
+        private void EndClass(StringBuilder builder)
         {
             builder.Append($@"
 }}

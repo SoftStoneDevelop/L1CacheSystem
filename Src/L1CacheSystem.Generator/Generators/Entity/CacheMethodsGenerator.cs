@@ -1,4 +1,5 @@
 ﻿using L1CacheSystem.Generator.AttributeInfo;
+using L1CacheSystem.Generator.Generators.Lock;
 using L1CacheSystem.Generator.Helpers;
 using Microsoft.CodeAnalysis;
 using System;
@@ -17,7 +18,7 @@ namespace L1CacheSystem.Generator.Generators.Entity
             StringBuilder builder,
             string partName)
         {
-            Usings(builder, cacheInfo);
+            Usings(builder);
             Namespace(builder, cacheInfo);
             StartClass(builder, cacheInfo);
 
@@ -28,7 +29,7 @@ namespace L1CacheSystem.Generator.Generators.Entity
             GetMethod(builder, cacheInfo);
             GetAllMethod(builder, cacheInfo);
 
-            EndClass(builder, cacheInfo);
+            EndClass(builder);
 
             context.AddSource($"{partName}{cacheInfo.CacheName}.g.cs", builder.ToString());
         }
@@ -46,7 +47,7 @@ namespace L1CacheSystem.Generator.Generators.Entity
             yield return DeleteMethodDeclaration(cacheInfo);
         }
 
-        private void Usings(StringBuilder builder, CacheInfo cacheInfo)
+        private void Usings(StringBuilder builder)
         {
             builder.Append(@"
 using Microsoft.Extensions.Logging;
@@ -155,6 +156,7 @@ public partial class {cacheInfo.ContainsType.Name}
             }
 
             builder.Append($@"
+        Interlocked.Exchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(cacheInfo.CacheName)}, value: 1);
     }}
 ");
         }
@@ -350,7 +352,7 @@ public partial class {cacheInfo.ContainsType.Name}
             }
         }
 
-        private void EndClass(StringBuilder builder, CacheInfo cacheInfo)
+        private void EndClass(StringBuilder builder)
         {
             builder.Append($@"
 }}
