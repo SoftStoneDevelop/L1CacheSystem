@@ -131,12 +131,29 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         }
     }
 
-    protected void RemoveUnusedLocks(ConcurrentDictionary<string, CacheLockInfo> locks)
+    protected DateTimeOffset? RemoveUnusedLocks(ConcurrentDictionary<string, CacheLockInfo> locks)
     {
+        var expirationTimeout = TimeSpan.FromMinutes(2);
+        var expiredHorizon = _timeProvider.GetUtcNow() - expirationTimeout;
+
+        DateTimeOffset minExpired = _timeProvider.GetUtcNow() + expirationTimeout;
         try
         {
-            var lockKeys = locks.Keys.ToArray();
-            foreach (var lockKey in lockKeys)
+            var candidatesToRemovedKeys =
+                locks
+                .Where(wh =>
+                {
+                    if (minExpired > wh.Value.LastGetLock)
+                    {
+                        minExpired = wh.Value.LastGetLock;
+                    }
+
+                    return wh.Value.LastGetLock < expiredHorizon;
+                })
+                .Select(s => s.Key)
+                .ToArray();
+
+            foreach (var lockKey in candidatesToRemovedKeys)
             {
                 if (!locks.TryGetValue(lockKey, out var cacheLock))
                 {
@@ -144,7 +161,7 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
                 }
 
                 var timeFromLastGetLock = _timeProvider.GetUtcNow() - cacheLock.LastGetLock;
-                if (timeFromLastGetLock < TimeSpan.FromMinutes(2))
+                if (timeFromLastGetLock < expirationTimeout)
                 {
                     continue;
                 }
@@ -199,9 +216,11 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         {
             _logger.LogError(ex, "Error while clearing unused locks");
         }
+
+        return minExpired;
     }
 
-    protected void RemoveExpired<K, T>(
+    protected DateTimeOffset? RemoveExpired<K, T>(
         ConcurrentDictionary<K, CacheValue<T>> storage,
         ConcurrentDictionary<string, CacheLockInfo> locks,
         Func<K, string> getResource,
@@ -215,6 +234,7 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
             .Select(static s => s.Key)
             .ToArray();
 
+        DateTimeOffset? minExpired = null;
         var currentTime = _timeProvider.GetUtcNow();
         foreach (var key in potentionalExpiredKeys)
         {
@@ -229,6 +249,11 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
             if (!cacheValue.Expire.HasValue)
             {
                 continue;
+            }
+
+            if (!minExpired.HasValue || minExpired > cacheValue.Expire.Value)
+            {
+                minExpired = cacheValue.Expire.Value;
             }
 
             resource = getResource(key);
@@ -275,6 +300,8 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
                 }
             }
         }
+
+        return minExpired;
     }
 
     private async Task<SemaphoreSlimOwner> GetLockAsync(

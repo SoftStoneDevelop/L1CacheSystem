@@ -277,6 +277,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             }
 
             builder.Append($@"
+            Interlocked.Exchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(keyInfo.CacheName)}, value: 1);
         }}
     }}
 ");
@@ -1068,10 +1069,12 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                         _source.InternalDelete{keyInfo.CacheName}{columnInfo.ColumnName}(ref index, columnIndex);
                     }}
                 }}
-            }}");
+            }}
+");
             }
 
             builder.Append($@"
+            Interlocked.Exchange(location1: ref _source.{LockMethodsGenerator.HaveChangesVarName(keyInfo.CacheName)}, value: 1);
         }}
 
         public readonly void Delete({keyInfo.KeyType.GetFullTypeName()} key)
@@ -1156,6 +1159,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
                 builder.Append($@"
             }}
+
+            Interlocked.Exchange(location1: ref _source.{LockMethodsGenerator.HaveChangesVarName(keyInfo.CacheName)}, value: 1);
         }}
 ");
             }
@@ -1375,8 +1380,9 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {
             var keyInfo = cacheInfo.KeyInfo;
             builder.Append($@"
-    private void {RemoveExpiredMethodName(keyInfo.CacheName)}(ConcurrentDictionary<string, CacheLockInfo> locks)
+    private DateTimeOffset? {RemoveExpiredMethodName(keyInfo.CacheName)}(ConcurrentDictionary<string, CacheLockInfo> locks)
     {{
+        DateTimeOffset? minExpired = null;
         {VarSlimLockName(keyInfo)}.EnterUpgradeableReadLock();
         try
         {{
@@ -1389,6 +1395,11 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                 if (!pair.Value.Expire.HasValue)
                 {{
                     continue;
+                }}
+
+                if (!minExpired.HasValue || minExpired > pair.Value.Expire)
+                {{
+                    minExpired = pair.Value.Expire;
                 }}
 
                 if (currentTime > pair.Value.Expire)
@@ -1405,7 +1416,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
 
             if (count == 0)
             {{
-                return;
+                return minExpired;
             }}
 
             {VarSlimLockName(keyInfo)}.EnterWriteLock();
@@ -1482,6 +1493,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             {{
                 {VarSlimLockName(keyInfo)}.ExitWriteLock();
             }}
+
+            return minExpired;
         }}
         finally
         {{
@@ -1712,7 +1725,8 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         }}
         finally
         {{
-            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();");
+            {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
+            Interlocked.Exchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(cacheInfo.KeyInfo.CacheName)}, value: 1);");
 
             if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetFromViewCallTime))
             {

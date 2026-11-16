@@ -1,4 +1,5 @@
 ﻿using L1CacheSystem.Generator.AttributeInfo;
+using L1CacheSystem.Generator.Generators.Lock;
 using L1CacheSystem.Generator.Helpers;
 using Microsoft.CodeAnalysis;
 using System;
@@ -155,6 +156,7 @@ public partial class {cacheInfo.ContainsType.Name}
             }
 
             builder.Append($@"
+        Interlocked.Exchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(cacheInfo.CacheName)}, value: 1);
     }}
 ");
         }

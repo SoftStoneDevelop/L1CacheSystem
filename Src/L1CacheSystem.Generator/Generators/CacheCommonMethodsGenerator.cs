@@ -2,8 +2,9 @@
 using L1CacheSystem.Generator.Generators.Lock;
 using Microsoft.CodeAnalysis;
 using System.Text;
+using System.Threading;
 
-namespace L1CacheSystem.Generator.Generators.Entity
+namespace L1CacheSystem.Generator.Generators
 {
     internal class CacheCommonMethodsGenerator
     {
@@ -111,29 +112,44 @@ public partial class {containsType.Name}
         {
             builder.Append($@"
     protected override void RemoveExpiredGenerated()
-    {{");
+    {{
+        var currentTime = _timeProvider.GetUtcNow();");
             foreach (var inputParam in inputParams)
             {
                 string collectMetricsStr = inputParam.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.ItemsCount) ? "true" : "false";
+                builder.Append($@"
+        // If no one has touched the cache and, based on the latest scan,
+        // it's not yet time to clear anything out,
+        // then we leave the cache alone.
+        var haveChanges{inputParam.CacheTypeName} = Interlocked.CompareExchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(inputParam.CacheTypeName)}, value: 0, comparand: 1);
+        if (haveChanges{inputParam.CacheTypeName} == 1 || currentTime > {LockMethodsGenerator.MinExpiredDateName(inputParam.CacheTypeName)})
+        {{
+");
                 if (inputParam is ParamsEntity paramsEntity)
                 {
                     builder.Append($@"
-        RemoveExpired(
-            {paramsEntity.ItemsCollectionName},
-            {LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)},
-            {paramsEntity.GetLockKeyMthodName},
-            ""{paramsEntity.CacheTypeName}"",
-            {collectMetricsStr});
+            {LockMethodsGenerator.MinExpiredDateName(inputParam.CacheTypeName)} = RemoveExpired(
+                {paramsEntity.ItemsCollectionName},
+                {LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)},
+                {paramsEntity.GetLockKeyMthodName},
+                ""{paramsEntity.CacheTypeName}"",
+                {collectMetricsStr});
 ");
                 }
                 else if (inputParam is ParamsColumn paramsColumn)
                 {
                     builder.Append($@"
-        {paramsColumn.RemoveExpiredMethodName}({LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)});");
+            {LockMethodsGenerator.MinExpiredDateName(inputParam.CacheTypeName)} = {paramsColumn.RemoveExpiredMethodName}({LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)});");
                 }
 
                 builder.Append($@"
-        RemoveUnusedLocks({LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)});
+        }}
+
+        var haveLockChanges{inputParam.CacheTypeName} = Interlocked.CompareExchange(location1: ref {LockMethodsGenerator.HaveLockChangesVarName(inputParam.CacheTypeName)}, value: 0, comparand: 1);
+        if (haveLockChanges{inputParam.CacheTypeName} == 1 || currentTime > {LockMethodsGenerator.MinLockExpiredDateName(inputParam.CacheTypeName)})
+        {{
+            {LockMethodsGenerator.MinLockExpiredDateName(inputParam.CacheTypeName)} = RemoveUnusedLocks({LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)});
+        }}
 ");
             }
 
