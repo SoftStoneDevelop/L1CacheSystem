@@ -104,9 +104,7 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         while (!token.IsCancellationRequested)
         {
             await Task.Delay(delayTime, token).ContinueWith((_) => { }, CancellationToken.None).ConfigureAwait(false);
-            var start = _timeProvider.GetTimestamp();
             ClearExpiredCache();
-            _metrics.RemoveExpiredObserve(_timeProvider.GetElapsedTime(start).TotalMicroseconds);
         }
     }
 
@@ -136,14 +134,14 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         var expirationTimeout = TimeSpan.FromMinutes(2);
         var expiredHorizon = _timeProvider.GetUtcNow() - expirationTimeout;
 
-        DateTimeOffset minExpired = _timeProvider.GetUtcNow() + expirationTimeout;
+        DateTimeOffset? minExpired = null;
         try
         {
             var candidatesToRemovedKeys =
                 locks
                 .Where(wh =>
                 {
-                    if (minExpired > wh.Value.LastGetLock)
+                    if (!minExpired.HasValue || minExpired > wh.Value.LastGetLock)
                     {
                         minExpired = wh.Value.LastGetLock;
                     }
