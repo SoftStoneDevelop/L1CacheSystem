@@ -2,7 +2,6 @@
 using L1CacheSystem.Generator.Generators.Lock;
 using Microsoft.CodeAnalysis;
 using System.Text;
-using System.Threading;
 
 namespace L1CacheSystem.Generator.Generators
 {

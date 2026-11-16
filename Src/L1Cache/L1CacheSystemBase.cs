@@ -100,7 +100,7 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
 
     private async Task RemoveExpireRoutine(CancellationToken token)
     {
-        const int delayTime = 10_000;
+        const int delayTime = 20_000;
         while (!token.IsCancellationRequested)
         {
             await Task.Delay(delayTime, token).ContinueWith((_) => { }, CancellationToken.None).ConfigureAwait(false);

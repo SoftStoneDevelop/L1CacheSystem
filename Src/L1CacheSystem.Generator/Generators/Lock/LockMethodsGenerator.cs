@@ -151,7 +151,7 @@ public partial class {cacheInfo.ContainsType.Name}
         }}
         finally
         {{
-            Interlocked.CompareExchange(location1: ref {HaveLockChangesVarName(cacheInfo.CacheName)}, value: 0, comparand: 1);
+            Interlocked.Exchange(location1: ref {HaveLockChangesVarName(cacheInfo.CacheName)}, value: 1);
         }}
     }}
 ");
