@@ -11,9 +11,6 @@ public partial class LockGuard : ILockGuard
     [LoggerMessage(Level = LogLevel.Critical, Message = "Error releasing lock {key}; it has already been deleted")]
     private partial void LogKeyAlreadyDeleted(string key);
 
-    [LoggerMessage(Level = LogLevel.Critical, Message = "{key}: upon releasing {lockGuard}, no locks should remain (lock count: {lockCount})")]
-    private partial void LogHaveRemainLock(string key, string lockGuard, int lockCount);
-
     private readonly ILogger _logger;
     private readonly LockGuard? _parent;
 
@@ -40,7 +37,7 @@ public partial class LockGuard : ILockGuard
     /// <summary>
     /// For testing purposes, obtain information about the block
     /// </summary>
-    public int GetLockCount(string key)
+    internal int GetTotalLockCount(string key)
     {
         var current = this;
         while (current != null)
@@ -52,6 +49,21 @@ public partial class LockGuard : ILockGuard
             }
 
             current = current._parent;
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// For testing purposes, obtain information about the block
+    /// </summary>
+    internal int GetLockCount(string key)
+    {
+        var current = this;
+        var lockInfo = current._locks.Find(wh => wh.Resource == key);
+        if (lockInfo != null)
+        {
+            return lockInfo.Count;
         }
 
         return 0;
@@ -160,7 +172,8 @@ public partial class LockGuard : ILockGuard
             var lockInfo = _locks[i];
             if (lockInfo.Count > 0)
             {
-                LogHaveRemainLock(lockInfo.Resource, nameof(LockGuard), lockInfo.Count);
+                // Since this is clearly an incorrect use of the library and an error on the part of the user, we immediately throw an exception.
+                throw new Exception($"Key '{lockInfo.Resource}': upon releasing {nameof(LockGuard)}, no locks should remain (lock count: {lockInfo.Count})");
             }
 
             _locks.RemoveAt(i);

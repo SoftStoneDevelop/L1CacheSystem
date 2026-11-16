@@ -523,7 +523,11 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
             catch (Exception ex)
             {
                 Interlocked.Decrement(ref _inWait);
-                if (ex is not OperationCanceledException)
+                if (ex is OperationCanceledException)
+                {
+                    throw;
+                }
+                else
                 {
                     LogWaitLoopError(ex, _resource);
                 }
