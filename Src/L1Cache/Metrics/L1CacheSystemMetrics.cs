@@ -23,6 +23,7 @@ public sealed class L1CacheSystemMetrics
     private readonly UpDownCounter<long> _itemsCount;
     private readonly UpDownCounter<long> _columnsCount;
     private readonly Histogram<double> _getLockTimeHistogram;
+    private readonly Histogram<double> _removeExpiredLoopTime;
 
     private readonly Counter<long> _setCallsCount;
     private readonly Histogram<double> _setCallTime;
@@ -69,6 +70,11 @@ public sealed class L1CacheSystemMetrics
             "get_lock_time",
             unit: "us",
             description: "The time taken by the method");
+
+        _removeExpiredLoopTime = _meter.CreateHistogram<double>(
+            "remove_expired_loop_time",
+            unit: "us",
+            description: "The execution time of a single iteration of the loop that clears expired cache values");
 
         _setCallsCount = _meter.CreateCounter<long>("set_calls_count");
         _setCallTime = _meter.CreateHistogram<double>(
@@ -194,6 +200,19 @@ public sealed class L1CacheSystemMetrics
         tags.Add(_instanceLabelTag);
         tags.Add(_cacheType, cacheTypeName);
         _getLockTimeHistogram.Record(
+            microseconds,
+            tags);
+    }
+
+    /// <summary>
+    /// Set a metric that reflects the execution time of a single iteration of the loop during which expired cache entries are cleared.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void RemoveExpiredObserve(double microseconds)
+    {
+        TagList tags = default;
+        tags.Add(_instanceLabelTag);
+        _removeExpiredLoopTime.Record(
             microseconds,
             tags);
     }

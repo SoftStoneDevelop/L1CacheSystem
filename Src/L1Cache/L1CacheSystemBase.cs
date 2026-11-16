@@ -104,7 +104,9 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         while (!token.IsCancellationRequested)
         {
             await Task.Delay(delayTime, token).ContinueWith((_) => { }, CancellationToken.None).ConfigureAwait(false);
+            var start = _timeProvider.GetTimestamp();
             ClearExpiredCache();
+            _metrics.RemoveExpiredObserve(_timeProvider.GetElapsedTime(start).TotalMicroseconds);
         }
     }
 
