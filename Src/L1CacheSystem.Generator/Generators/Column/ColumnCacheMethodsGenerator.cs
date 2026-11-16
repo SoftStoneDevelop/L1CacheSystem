@@ -1375,7 +1375,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         {
             var keyInfo = cacheInfo.KeyInfo;
             builder.Append($@"
-    private void {RemoveExpiredMethodName(keyInfo.CacheName)}()
+    private void {RemoveExpiredMethodName(keyInfo.CacheName)}(ConcurrentDictionary<string, CacheLockInfo> locks)
     {{
         {VarSlimLockName(keyInfo)}.EnterUpgradeableReadLock();
         try
@@ -1415,7 +1415,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                 {{
                     var keyToDelete = keysToDeleteSpan[i];
                     var resource = {LockMethodsGenerator.GetLockKeyMethodName(keyInfo.CacheName)}(keyToDelete);
-                    _locks.TryGetValue(resource, out var keyLock);
+                    locks.TryGetValue(resource, out var keyLock);
                     if (keyLock?.TryEnterBusy() == false)
                     {{
                         // lock busy

@@ -16,7 +16,7 @@ namespace L1CacheSystem.Generator.Generators.Lock
             StringBuilder builder,
             string partName)
         {
-            Usings(builder, cacheInfo);
+            Usings(builder);
             Namespace(builder, cacheInfo);
             StartClass(builder, cacheInfo);
 
@@ -24,7 +24,7 @@ namespace L1CacheSystem.Generator.Generators.Lock
 
             LockMethods(builder, cacheInfo);
 
-            EndClass(builder, cacheInfo);
+            EndClass(builder);
 
             context.AddSource($"{partName}{cacheInfo.CacheName}Locks.g.cs", builder.ToString());
         }
@@ -44,7 +44,7 @@ namespace L1CacheSystem.Generator.Generators.Lock
             yield return GetLockMethodDeclaration(cacheInfo);
         }
 
-        private void Usings(StringBuilder builder, Param cacheInfo)
+        private void Usings(StringBuilder builder)
         {
             builder.Append(@"
 using Microsoft.Extensions.Logging;
@@ -75,9 +75,15 @@ public partial class {cacheInfo.ContainsType.Name}
 ");
         }
 
+        public static string GetLockDicName(string cacheName)
+        {
+            return $"_{cacheName.ToCamelCase()}Locks";
+        }
+
         private void PrivateVars(StringBuilder builder, Param cacheInfo)
         {
             builder.Append($@"
+    private readonly ConcurrentDictionary<string, CacheLockInfo> {GetLockDicName(cacheInfo.CacheName)} = new();
     private const string {GetLockPrefixName(cacheInfo)} = ""{cacheInfo.CacheName.ToLowerInvariant()}"";
 ");
         }
@@ -104,14 +110,20 @@ public partial class {cacheInfo.ContainsType.Name}
         return $""lock:{{{GetLockPrefixName(cacheInfo)}}}:{{{cacheInfo.CacheName.ToCamelCase()}LockKey}}"";
     }}
 
-    public async {GetLockMethodDeclaration(cacheInfo)}
+    public {GetLockMethodDeclaration(cacheInfo)}
     {{
-        await GetLockAsync({GetLockKeyMethodName(cacheInfo.CacheName)}({cacheInfo.CacheName.ToCamelCase()}Key), ""{cacheInfo.CacheName}"", lockGuard, {collectMetricsStr}, cancellationToken);
+        return GetLockAsync(
+            {GetLockDicName(cacheInfo.CacheName)},
+            {GetLockKeyMethodName(cacheInfo.CacheName)}({cacheInfo.CacheName.ToCamelCase()}Key),
+            ""{cacheInfo.CacheName}"",
+            lockGuard,
+            {collectMetricsStr},
+            cancellationToken);
     }}
 ");
         }
 
-        private void EndClass(StringBuilder builder, Param cacheInfo)
+        private void EndClass(StringBuilder builder)
         {
             builder.Append($@"
 }}

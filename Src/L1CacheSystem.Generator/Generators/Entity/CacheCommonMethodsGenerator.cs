@@ -1,4 +1,5 @@
 ﻿using L1CacheSystem.Generator.Enums;
+using L1CacheSystem.Generator.Generators.Lock;
 using Microsoft.CodeAnalysis;
 using System.Text;
 
@@ -62,25 +63,43 @@ public partial class {containsType.Name}
     {{");
             foreach (var inputParam in inputParams)
             {
+                builder.Append($@"
+        try
+        {{
+            foreach (var keyLock in {LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)})
+            {{
+                keyLock.Value.Dispose();
+            }}
+
+            {LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)}.Clear();
+");
                 if (inputParam is ParamsEntity paramsEntity)
                 {
                     builder.Append($@"
-        {paramsEntity.ItemsCollectionName}.Clear();");
+            {paramsEntity.ItemsCollectionName}.Clear();");
                 }
                 else if (inputParam is ParamsColumn paramsColumn)
                 {
-                    foreach (var toClearName in paramsColumn.CollectionsToClearNames)
-                    {
-                        builder.Append($@"
-        {toClearName}.Clear();");
-                    }
-
                     foreach (var toDisposeName in paramsColumn.DisposedResourcesNames)
                     {
                         builder.Append($@"
-        {toDisposeName}.Dispose();");
+            {toDisposeName}.Dispose();");
+                    }
+
+                    foreach (var toClearName in paramsColumn.CollectionsToClearNames)
+                    {
+                        builder.Append($@"
+            {toClearName}.Clear();");
                     }
                 }
+
+                builder.Append($@"
+        }}
+        catch
+        {{
+            // ignore
+        }}
+");
             }
 
             builder.Append($@"
@@ -99,13 +118,23 @@ public partial class {containsType.Name}
                 if (inputParam is ParamsEntity paramsEntity)
                 {
                     builder.Append($@"
-        RemoveExpired({paramsEntity.ItemsCollectionName}, {paramsEntity.GetLockKeyMthodName}, ""{paramsEntity.CacheTypeName}"", {collectMetricsStr});");
+        RemoveExpired(
+            {paramsEntity.ItemsCollectionName},
+            {LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)},
+            {paramsEntity.GetLockKeyMthodName},
+            ""{paramsEntity.CacheTypeName}"",
+            {collectMetricsStr});
+");
                 }
                 else if (inputParam is ParamsColumn paramsColumn)
                 {
                     builder.Append($@"
-        {paramsColumn.RemoveExpiredMethodName}();");
+        {paramsColumn.RemoveExpiredMethodName}({LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)});");
                 }
+
+                builder.Append($@"
+        RemoveUnusedLocks({LockMethodsGenerator.GetLockDicName(inputParam.CacheTypeName)});
+");
             }
 
             builder.Append($@"

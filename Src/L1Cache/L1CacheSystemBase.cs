@@ -37,8 +37,6 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
     protected readonly TimeProvider _timeProvider;
     protected readonly L1CacheSystemMetrics _metrics;
 
-    protected readonly ConcurrentDictionary<string, CacheLockInfo> _locks = new();
-
     private CancellationTokenSource? _cts;
     private Task? _removeExpireRoutine;
 
@@ -129,13 +127,16 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         {
             _logger.LogError(ex, "Error in the cleanup loop for expired entries in generated caches");
         }
+    }
 
+    protected void RemoveUnusedLocks(ConcurrentDictionary<string, CacheLockInfo> locks)
+    {
         try
         {
-            var lockKeys = _locks.Keys.ToArray();
+            var lockKeys = locks.Keys.ToArray();
             foreach (var lockKey in lockKeys)
             {
-                if (!_locks.TryGetValue(lockKey, out var cacheLock))
+                if (!locks.TryGetValue(lockKey, out var cacheLock))
                 {
                     continue;
                 }
@@ -161,11 +162,11 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
                         continue;
                     }
 
-                    if (_locks.TryRemove(lockKey, out var removedLock))
+                    if (locks.TryRemove(lockKey, out var removedLock))
                     {
                         if (cacheLock != removedLock)
                         {
-                            _locks.TryAdd(lockKey, removedLock);
+                            locks.TryAdd(lockKey, removedLock);
                             LogLockHeldByAnotherRemoved(lockKey);
                         }
                         else
@@ -200,24 +201,20 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
 
     protected void RemoveExpired<K, T>(
         ConcurrentDictionary<K, CacheValue<T>> storage,
-        Func<K, string> getResource,
-        string cacheTypeName,
-        bool collectItemsCountMetric = false)
-        where K : notnull
-    {
-        RemoveExpired(storage, _locks, getResource, cacheTypeName, collectItemsCountMetric);
-    }
-
-    private void RemoveExpired<K, T>(
-        ConcurrentDictionary<K, CacheValue<T>> storage,
         ConcurrentDictionary<string, CacheLockInfo> locks,
         Func<K, string> getResource,
         string cacheTypeName,
         bool collectItemsCountMetric = false)
         where K : notnull
     {
-        var keys = storage.Keys.ToArray();
-        foreach (var key in keys)
+        var potentionalExpiredKeys =
+            storage
+            .Where(static wh => wh.Value.Expire.HasValue)
+            .Select(static s => s.Key)
+            .ToArray();
+
+        var currentTime = _timeProvider.GetUtcNow();
+        foreach (var key in potentionalExpiredKeys)
         {
             string resource;
             if (!storage.TryGetValue(key, out var cacheValue))
@@ -248,7 +245,7 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
                     continue;
                 }
 
-                if (_timeProvider.GetUtcNow() > cacheValue.Expire)
+                if (currentTime > cacheValue.Expire)
                 {
                     if (storage.TryRemove(key, out var removedCache))
                     {
@@ -279,6 +276,7 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
     }
 
     private async Task<SemaphoreSlimOwner> GetLockAsync(
+        ConcurrentDictionary<string, CacheLockInfo> locks,
         string resource,
         string cacheTypeName,
         bool collectGetLockTimeMetric = false,
@@ -297,13 +295,13 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (_locks.TryGetValue(resource, out resourceLock))
+                if (locks.TryGetValue(resource, out resourceLock))
                 {
                     break;
                 }
 
                 var newLock = new CacheLockInfo(resource, _logger, _timeProvider);
-                if (!_locks.TryAdd(resource, newLock))
+                if (!locks.TryAdd(resource, newLock))
                 {
                     newLock.Dispose();
                     continue;
@@ -343,6 +341,7 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
     }
 
     protected async Task GetLockAsync(
+        ConcurrentDictionary<string, CacheLockInfo> locks,
         string resource,
         string chacheTypeName,
         ILockGuard lockGuard,
@@ -350,23 +349,25 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
         CancellationToken cancellationToken = default)
     {
         // If it’s already blocked, we’ll increment the counter.
-        if (!lockGuard.IncrementCountIfContainLock(resource))
+        if (lockGuard.IncrementCountIfContainLock(resource))
         {
-            try
-            {
-                // If a lock wasn't acquired within the session, we will acquire it.
-                var lockInfo = await GetLockAsync(resource, chacheTypeName, collectGetLockTimeMetric, cancellationToken).ConfigureAwait(false);
-                if (!lockGuard.AddLock(lockInfo, resource))
-                {
-                    lockGuard.DecrementPairsLock(resource);
-                    lockInfo.Dispose();
-                }
-            }
-            catch
+            return;
+        }
+
+        try
+        {
+            // If a lock wasn't acquired within the session, we will acquire it.
+            var lockInfo = await GetLockAsync(locks, resource, chacheTypeName, collectGetLockTimeMetric, cancellationToken).ConfigureAwait(false);
+            if (!lockGuard.AddLock(lockInfo, resource))
             {
                 lockGuard.DecrementPairsLock(resource);
-                throw;
+                lockInfo.Dispose();
             }
+        }
+        catch
+        {
+            lockGuard.DecrementPairsLock(resource);
+            throw;
         }
     }
 
@@ -400,15 +401,10 @@ public abstract partial class L1CacheSystemBase : IL1CacheSystemBase
     {
     }
 
+#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
     public void Dispose()
+#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
     {
-        foreach (var keyLock in _locks)
-        {
-            keyLock.Value.Dispose();
-        }
-
-        _locks.Clear();
-
         try
         {
             DisposeUser();
