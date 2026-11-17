@@ -8,7 +8,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>GetMemoryCacheBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/GetMemoryCacheBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/Entity/GetMemoryCacheBench.cs)
 
 | Method                      | Runtime        | Size   | Mean        | Error      | StdDev     | Median      | Ratio | RatioSD | Allocated | Alloc Ratio |
 |---------------------------- |--------------- |------- |------------:|-----------:|-----------:|------------:|------:|--------:|----------:|------------:|
@@ -40,7 +40,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>SetMemoryCacheBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/SetMemoryCacheBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/Entity/SetMemoryCacheBench.cs)
 
 | Method             | Runtime        | Size   | Mean        | Error       | StdDev      | Median      | Ratio | RatioSD | Gen0      | Gen1      | Gen2      | Allocated | Alloc Ratio |
 |------------------- |--------------- |------- |------------:|------------:|------------:|------------:|------:|--------:|----------:|----------:|----------:|----------:|------------:|
@@ -72,7 +72,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>DeleteMemoryCacheBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/DeleteMemoryCacheBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/Entity/DeleteMemoryCacheBench.cs)
 
 | Method                | Runtime        | Size   | Mean       | Error     | StdDev    | Median     | Ratio | RatioSD | Allocated | Alloc Ratio |
 |---------------------- |--------------- |------- |-----------:|----------:|----------:|-----------:|------:|--------:|----------:|------------:|
@@ -104,7 +104,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>UpdateMemoryCacheBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Entity/UpdateMemoryCacheBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/Entity/UpdateMemoryCacheBench.cs)
 
 | Method                | Runtime        | Size   | Mean        | Error     | StdDev      | Median      | Ratio | RatioSD | Gen0      | Gen1      | Allocated | Alloc Ratio |
 |---------------------- |--------------- |------- |------------:|----------:|------------:|------------:|------:|--------:|----------:|----------:|----------:|------------:|
@@ -136,7 +136,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>GetIntColumnBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/GetIntColumnBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/Column/GetIntColumnBench.cs)
 
 | Method                | Runtime        | Size    | Mean         | Error      | StdDev     | Median       | Ratio | RatioSD | Allocated | Alloc Ratio |
 |---------------------- |--------------- |-------- |-------------:|-----------:|-----------:|-------------:|------:|--------:|----------:|------------:|
@@ -185,7 +185,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>GetViewBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/GetViewBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/Column/GetViewBench.cs)
 
 | Method                         | Runtime        | Size    | Mean         | Error       | StdDev      | Median       | Ratio | RatioSD | Gen0       | Gen1      | Allocated    | Alloc Ratio |
 |------------------------------- |--------------- |-------- |-------------:|------------:|------------:|-------------:|------:|--------:|-----------:|----------:|-------------:|------------:|
@@ -234,7 +234,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>SetViewBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/SetViewBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/Column/SetViewBench.cs)
 
 | Method                            | Runtime        | Size    | Mean         | Error       | StdDev       | Median       | Ratio | RatioSD | Gen0       | Gen1       | Gen2      | Allocated | Alloc Ratio |
 |---------------------------------- |--------------- |-------- |-------------:|------------:|-------------:|-------------:|------:|--------:|-----------:|-----------:|----------:|----------:|------------:|
@@ -283,7 +283,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>UpdateColumnBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/UpdateColumnBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/Column/UpdateColumnBench.cs)
 
 | Method               | Runtime        | Size    | Mean         | Error       | StdDev      | Median       | Ratio | RatioSD | Gen0       | Gen1       | Allocated   | Alloc Ratio |
 |--------------------- |--------------- |-------- |-------------:|------------:|------------:|-------------:|------:|--------:|-----------:|-----------:|------------:|------------:|
@@ -316,7 +316,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>ViewInContextBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/ViewInContextBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/Column/ViewInContextBench.cs)
 
 | Method                              | Runtime        | Size    | Mean          | Error       | StdDev        | Median        | Ratio | Allocated | Alloc Ratio |
 |------------------------------------ |--------------- |-------- |--------------:|------------:|--------------:|--------------:|------:|----------:|------------:|
@@ -374,7 +374,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>OptionalBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/Column/OptionalBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/Column/OptionalBench.cs)
 
 | Method                            | Runtime        | Size    | Mean         | Error       | StdDev       | Ratio | RatioSD | Gen0       | Gen1       | Gen2      | Allocated | Alloc Ratio |
 |---------------------------------- |--------------- |-------- |-------------:|------------:|-------------:|------:|--------:|-----------:|-----------:|----------:|----------:|------------:|
@@ -422,7 +422,7 @@ Any benchmarks are merely specific use cases provided as examples. Don't take th
   <a>MetricEffectMemoryCacheBench</a>
 </h1>
 
-[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/docs/benchmarks/Src/Benchmarks/Cases/MetricEffectMemoryCacheBench.cs)
+[Code](https://github.com/SoftStoneDevelop/L1CacheSystem/blob/main/Src/Benchmarks/Cases/MetricEffectMemoryCacheBench.cs)
 
 | Method       | Runtime        | Size  | Mean      | Error    | StdDev    | Median    | Ratio | RatioSD | Gen0       | Gen1       | Gen2       | Allocated | Alloc Ratio |
 |------------- |--------------- |------ |----------:|---------:|----------:|----------:|------:|--------:|-----------:|-----------:|-----------:|----------:|------------:|
