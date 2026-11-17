@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace L1CacheSystem;
 
@@ -69,7 +68,7 @@ public partial class LockGuard : ILockGuard
         return 0;
     }
 
-    public bool AddLock(SemaphoreSlimOwner lockOwner, string resource)
+    bool ILockGuard.AddLock(SemaphoreSlimOwner lockOwner, string resource)
     {
         if (_lockPairs.TryGetValue(resource, out var count))
         {
@@ -108,7 +107,7 @@ public partial class LockGuard : ILockGuard
         }
     }
 
-    public bool IncrementCountIfContainLock(string resource)
+    bool ILockGuard.IncrementCountIfContainLock(string resource)
     {
         var current = this;
         var containLock = false;
@@ -139,7 +138,7 @@ public partial class LockGuard : ILockGuard
         return containLock;
     }
 
-    public void DecrementPairsLock(string resource)
+    void ILockGuard.DecrementPairsLock(string resource)
     {
         if (_lockPairs.TryGetValue(resource, out var count))
         {
@@ -147,7 +146,7 @@ public partial class LockGuard : ILockGuard
         }
     }
 
-    public ValueTask ReleaseLocksAsync()
+    public void ReleaseLocks()
     {
         // Let’s decrement the resource recursive lock counter.
         var current = this;
@@ -186,13 +185,12 @@ public partial class LockGuard : ILockGuard
                 _logger.LogError(ex, "Error releasing lock {resource}", lockInfo.Resource);
             }
         }
-
-        return ValueTask.CompletedTask;
     }
 
-    public ValueTask DisposeAsync()
+    public void Dispose()
     {
-        return ReleaseLocksAsync();
+        ReleaseLocks();
+        GC.SuppressFinalize(this);
     }
 
     sealed private class InnerLockInfo

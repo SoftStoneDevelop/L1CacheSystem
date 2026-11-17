@@ -65,14 +65,14 @@ internal class LockGuardTests
         Assert.That(getLockTask2.IsCompleted, Is.False);
         Assert.That(lockGuard2.GetTotalLockCount("lock:entity:1"), Is.EqualTo(0));
 
-        await lockGuard.DisposeAsync();
+        lockGuard.Dispose();
 
         await getLockTask2;
 
         Assert.That(getLockTask2.IsCompleted, Is.True);
         Assert.That(lockGuard2.GetTotalLockCount("lock:entity:1"), Is.EqualTo(1));
 
-        await lockGuard2.DisposeAsync();
+        lockGuard2.Dispose();
     }
 
     [Test]
@@ -93,14 +93,14 @@ internal class LockGuardTests
         Assert.That(getLockTask2.IsCompleted, Is.False);
         Assert.That(lockGuard2.GetTotalLockCount("lock:column:1"), Is.EqualTo(0));
 
-        await lockGuard.DisposeAsync();
+        lockGuard.Dispose();
 
         await getLockTask2;
 
         Assert.That(getLockTask2.IsCompleted, Is.True);
         Assert.That(lockGuard2.GetTotalLockCount("lock:column:1"), Is.EqualTo(1));
 
-        await lockGuard2.DisposeAsync();
+        lockGuard2.Dispose();
     }
 
     [Test]
@@ -120,8 +120,8 @@ internal class LockGuardTests
         await cts.CancelAsync();
         await Assert.ThrowsAsync<OperationCanceledException>(async () => await getLockTask2);
 
-        await lockGuard.DisposeAsync();
-        await lockGuard2.DisposeAsync();
+        lockGuard.Dispose();
+        lockGuard2.Dispose();
     }
 
     [Test]
@@ -189,14 +189,14 @@ internal class LockGuardTests
         Assert.That(lockGuard2.GetLockCount("lock:column:1"), Is.EqualTo(0));
         Assert.That(lockGuard2.GetTotalLockCount("lock:column:1"), Is.EqualTo(5));
 
-        await lockGuard2.DisposeAsync();
+        lockGuard2.Dispose();
 
         Assert.That(lockGuard.GetLockCount("lock:column:1"), Is.EqualTo(2));
         Assert.That(lockGuard.GetTotalLockCount("lock:column:1"), Is.EqualTo(2));
         Assert.That(lockGuard.GetLockCount("lock:column:2"), Is.EqualTo(0));
         Assert.That(lockGuard.GetTotalLockCount("lock:column:2"), Is.EqualTo(0));
 
-        await lockGuard.DisposeAsync();
+        lockGuard.Dispose();
     }
 
     [Test]
@@ -216,7 +216,7 @@ internal class LockGuardTests
         await cache.GetColumnLockAsync(1, lockGuard2);
         Assert.That(lockGuard2.GetTotalLockCount("lock:column:1"), Is.EqualTo(3));
 
-        var execption = await Assert.ThrowsAsync<Exception>(async () => await lockGuard.DisposeAsync());
+        var execption = Assert.Throws<Exception>(async () => lockGuard.Dispose());
         Assert.That(execption.Message, Is.EqualTo($"Key 'lock:column:1': upon releasing {nameof(LockGuard)}, no locks should remain (lock count: 2)"));
     }
 }

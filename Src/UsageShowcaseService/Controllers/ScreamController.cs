@@ -46,7 +46,7 @@ public class ScreamController : ControllerBase
     {
         var newScreamId = ScreamValue.GetNextId();
 
-        await using var lockGuard = new LockGuard(_logger, null);
+        using var lockGuard = new LockGuard(_logger, null);
         await _cacheSystem.GetScreamLockAsync(newScreamId, lockGuard, ct);
         await _cacheSystem.GetEchoLockAsync(newScreamId, lockGuard, ct);
 

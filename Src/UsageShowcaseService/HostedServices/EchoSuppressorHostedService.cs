@@ -63,7 +63,7 @@ public class EchoSuppressorHostedService : IHostedService
                 echos,
                 async (echo, ct) =>
                 {
-                    await using var lockGuard = new LockGuard(_logger, null);
+                    using var lockGuard = new LockGuard(_logger, null);
                     if (string.IsNullOrEmpty(echo.ResidualSound) || echo.ResidualSound.Length <= 1)
                     {
                         await _cacheSystem.GetEchoLockAsync(echo.Id, lockGuard, cancellationToken);
