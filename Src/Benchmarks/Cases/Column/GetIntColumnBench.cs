@@ -1,4 +1,5 @@
 ﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Jobs;
 using Benchmarks.Backend;
 using Benchmarks.Model;
@@ -9,6 +10,7 @@ using System;
 namespace Benchmarks.Cases.Column;
 
 [MemoryDiagnoser]
+[HardwareCounters]
 [SimpleJob(RuntimeMoniker.Net11_0)]
 [SimpleJob(RuntimeMoniker.NativeAot11_0)]
 public class GetIntColumnBench

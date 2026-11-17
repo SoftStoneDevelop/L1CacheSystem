@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 namespace Benchmarks.Cases.Column;
 
 [MemoryDiagnoser]
+[HardwareCounters]
 [SimpleJob(RuntimeMoniker.Net11_0)]
 [SimpleJob(RuntimeMoniker.NativeAot11_0)]
 public class ViewInContextBench
