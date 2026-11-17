@@ -156,7 +156,14 @@ public partial class {cacheInfo.ContainsType.Name}
             }
 
             builder.Append($@"
-        Interlocked.Exchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(cacheInfo.CacheName)}, value: 1);
+        if (expiry.HasValue)
+        {{
+            // If there is no expiration time, there is no need to trigger it.
+            // If there was an expiration time previously and we reset it,
+            // it will reset on its own during the next iteration, since there will be no candidates for deletion.
+            // Therefore, we set the flag only if there is an expiration time.
+            Interlocked.Exchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(cacheInfo.CacheName)}, value: 1);
+        }}
     }}
 ");
         }

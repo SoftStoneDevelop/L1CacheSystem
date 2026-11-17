@@ -277,7 +277,14 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             }
 
             builder.Append($@"
-            Interlocked.Exchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(keyInfo.CacheName)}, value: 1);
+            if (expiry.HasValue)
+            {{
+                // If there is no expiration time, there is no need to trigger it.
+                // If there was an expiration time previously and we reset it,
+                // it will reset on its own during the next iteration, since there will be no candidates for deletion.
+                // Therefore, we set the flag only if there is an expiration time.
+                Interlocked.Exchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(keyInfo.CacheName)}, value: 1);
+            }}
         }}
     }}
 ");
@@ -1074,7 +1081,14 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             }
 
             builder.Append($@"
-            Interlocked.Exchange(location1: ref _source.{LockMethodsGenerator.HaveChangesVarName(keyInfo.CacheName)}, value: 1);
+            if (expiry.HasValue)
+            {{
+                // If there is no expiration time, there is no need to trigger it.
+                // If there was an expiration time previously and we reset it,
+                // it will reset on its own during the next iteration, since there will be no candidates for deletion.
+                // Therefore, we set the flag only if there is an expiration time.
+                Interlocked.Exchange(location1: ref _source.{LockMethodsGenerator.HaveChangesVarName(keyInfo.CacheName)}, value: 1);
+            }}
         }}
 
         public readonly void Delete({keyInfo.KeyType.GetFullTypeName()} key)
@@ -1160,7 +1174,14 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
                 builder.Append($@"
             }}
 
-            Interlocked.Exchange(location1: ref _source.{LockMethodsGenerator.HaveChangesVarName(keyInfo.CacheName)}, value: 1);
+            if (expiry.HasValue)
+            {{
+                // If there is no expiration time, there is no need to trigger it.
+                // If there was an expiration time previously and we reset it,
+                // it will reset on its own during the next iteration, since there will be no candidates for deletion.
+                // Therefore, we set the flag only if there is an expiration time.
+                Interlocked.Exchange(location1: ref _source.{LockMethodsGenerator.HaveChangesVarName(keyInfo.CacheName)}, value: 1);
+            }}
         }}
 ");
             }
@@ -1688,7 +1709,7 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
             builder.Append($@"
             }}
 
-            index.Expire =_timeProvider.GetUtcNow() + expiry;");
+            index.Expire = _timeProvider.GetUtcNow() + expiry;");
 
             for (int i = 0; i < cacheInfo.ColumnInfos.Count; i++)
             {
@@ -1726,7 +1747,16 @@ public partial class {cacheInfo.KeyInfo.ContainsType.Name}
         finally
         {{
             {VarSlimLockName(cacheInfo.KeyInfo)}.ExitWriteLock();
-            Interlocked.Exchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(cacheInfo.KeyInfo.CacheName)}, value: 1);");
+
+            if (expiry.HasValue)
+            {{
+                // If there is no expiration time, there is no need to trigger it.
+                // If there was an expiration time previously and we reset it,
+                // it will reset on its own during the next iteration, since there will be no candidates for deletion.
+                // Therefore, we set the flag only if there is an expiration time.
+                Interlocked.Exchange(location1: ref {LockMethodsGenerator.HaveChangesVarName(cacheInfo.KeyInfo.CacheName)}, value: 1);
+            }}
+");
 
             if (cacheInfo.KeyInfo.MetricCollectFlags.HasFlag(Enums.MetricCollectBits.SetFromViewCallTime))
             {
