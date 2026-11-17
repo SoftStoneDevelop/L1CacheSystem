@@ -23,7 +23,7 @@ Caching is also supported in two modes:
  - Entities
  - Columns
 
-An in-app cache system. It all started because IMemoryCache doesn’t allow you to scan a collection (and I really wanted to. Yeah, yeah, some might say that’s an anti-pattern and that I’m a total degenerate, but in the context where I used it, that’s exactly what was needed). That led to the first part of the EntityCache system, which is similar to IMemoryCache in terms of its API. It also supports automatic copying upon retrieval or returning a reference if a copy isn’t needed.
+An in-app cache system. It all started because `IMemoryCache` doesn’t allow you to scan a collection (and I really wanted to. Yeah, yeah, some might say that’s an anti-pattern and that I’m a total degenerate, but in the context where I used it, that’s exactly what was needed). That led to the first part of the EntityCache system, which is similar to `IMemoryCache` in terms of its API. It also supports automatic copying upon retrieval or returning a reference if a copy isn’t needed.
 
 At some point, I became dissatisfied with the cache’s scanning speed; moreover, stored entities sometimes have a lot of optional properties, but if you store the classes, memory is allocated for everything anyway. This led to the introduction of the ability to store data in the cache by columns, which allows for column-based scanning—a process that’s faster than reading separate classes, since columns are stored sequentially in memory.
 
@@ -38,9 +38,9 @@ Metrics are available for all operations; if metrics are not needed, they can be
 </h1>
 
 The first thing you need to do is to import the packages:
-- L1CacheSystem
-- L1CacheSystem.Attributes;
-- L1CacheSystem.Generator
+- `L1CacheSystem`
+- `L1CacheSystem.Attributes`
+- `L1CacheSystem.Generator`
 
 Then, in the code, you need to declare your cache. Let’s say that, for example, we will cache the `MyValue` class.
 ```csharp
